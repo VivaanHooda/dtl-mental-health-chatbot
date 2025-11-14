@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Send, LogOut, Sparkles, User as UserIcon, Menu, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import FitbitWidget from '@/components/FitbitWidget';
 
 interface Message {
   id: string;
@@ -17,15 +18,41 @@ export default function DashboardPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
     });
-  }, []);
+
+    // Check for Fitbit connection status
+    const fitbitConnected = searchParams.get('fitbit_connected');
+    const fitbitError = searchParams.get('fitbit_error');
+
+    if (fitbitConnected === 'true') {
+      // Show success message
+      const successMessage: Message = {
+        id: Date.now().toString(),
+        content: "Great! Your Fitbit has been connected successfully. I can now provide better insights based on your health data.",
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setMessages([successMessage]);
+    } else if (fitbitError) {
+      // Show error message
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: `There was an issue connecting your Fitbit: ${fitbitError}. Please try again or contact support if the problem persists.`,
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setMessages([errorMessage]);
+    }
+  }, [searchParams]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,6 +105,31 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900">
+      {/* Sidebar for Fitbit Widget - Desktop */}
+      <aside className="hidden lg:block w-80 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
+        <div className="p-4">
+          <FitbitWidget />
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-900 overflow-y-auto shadow-xl">
+            <div className="p-4">
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="mb-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <FitbitWidget />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
         {/* Header */}
@@ -88,13 +140,21 @@ export default function DashboardPage() {
             </div>
             <h1 className="text-lg font-medium text-slate-800 dark:text-slate-100">Mental Health Companion</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
         </header>
 
         {/* Messages Area */}
