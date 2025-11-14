@@ -46,8 +46,25 @@ export async function GET(request: NextRequest) {
 
     console.log('🔵 DATA: Storing in database for date:', dateStr);
 
-    // Store each data type separately
-    if (data.activity) {
+    // Store Fitbit profile separately in fitbit_tokens table
+    if (data.profile) {
+      console.log('🔵 DATA: Updating Fitbit profile info in tokens table');
+      const profileData = data.profile.user;
+      const { error } = await supabase
+        .from('fitbit_tokens')
+        .update({
+          fitbit_display_name: profileData.displayName,
+          fitbit_avatar_url: profileData.avatar,
+          fitbit_member_since: profileData.memberSince,
+        })
+        .eq('user_id', user.id);
+      
+      if (error) console.error('🔴 DATA: Profile update error:', error);
+      else console.log('🟢 DATA: Fitbit profile updated in tokens table');
+    }
+
+    // Store each data type separately (only if has meaningful data)
+    if (data.activity && data.activity.steps > 0) {
       console.log('🔵 DATA: Storing activity data');
       const { error } = await supabase.from('fitbit_data').upsert({
         user_id: user.id,
@@ -59,9 +76,11 @@ export async function GET(request: NextRequest) {
       });
       if (error) console.error('🔴 DATA: Activity storage error:', error);
       else console.log('🟢 DATA: Activity stored');
+    } else {
+      console.log('⚪ DATA: Skipping activity (no data)');
     }
 
-    if (data.heartRate) {
+    if (data.heartRate && data.heartRate.restingHeartRate > 0) {
       console.log('🔵 DATA: Storing heart rate data');
       const { error } = await supabase.from('fitbit_data').upsert({
         user_id: user.id,
@@ -73,9 +92,11 @@ export async function GET(request: NextRequest) {
       });
       if (error) console.error('🔴 DATA: Heart rate storage error:', error);
       else console.log('🟢 DATA: Heart rate stored');
+    } else {
+      console.log('⚪ DATA: Skipping heart rate (no data)');
     }
 
-    if (data.sleep) {
+    if (data.sleep && data.sleep.minutesAsleep > 0) {
       console.log('🔵 DATA: Storing sleep data');
       const { error } = await supabase.from('fitbit_data').upsert({
         user_id: user.id,
@@ -87,21 +108,11 @@ export async function GET(request: NextRequest) {
       });
       if (error) console.error('🔴 DATA: Sleep storage error:', error);
       else console.log('🟢 DATA: Sleep stored');
+    } else {
+      console.log('⚪ DATA: Skipping sleep (no data)');
     }
 
-    if (data.profile) {
-      console.log('🔵 DATA: Storing profile data');
-      const { error } = await supabase.from('fitbit_data').upsert({
-        user_id: user.id,
-        data_type: 'profile',
-        date: dateStr,
-        data: data.profile,
-      }, {
-        onConflict: 'user_id,data_type,date'
-      });
-      if (error) console.error('🔴 DATA: Profile storage error:', error);
-      else console.log('🟢 DATA: Profile stored');
-    }
+    // Don't store profile in fitbit_data anymore (it's in fitbit_tokens now)
 
     console.log('🟢 DATA: All data stored successfully!');
 

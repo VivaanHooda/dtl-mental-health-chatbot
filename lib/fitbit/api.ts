@@ -149,6 +149,22 @@ export async function getSimplifiedActivityData(
 ): Promise<SimplifiedActivityData> {
   const data = await fetchActivitySummary(userId, date);
   
+  // Only return data if user actually had activity
+  const hasActivity = data.summary.steps > 0 || 
+                      data.summary.caloriesOut > 0 || 
+                      data.summary.fairlyActiveMinutes > 0 ||
+                      data.summary.veryActiveMinutes > 0;
+  
+  if (!hasActivity) {
+    return {
+      steps: 0,
+      calories: 0,
+      distance: 0,
+      activeMinutes: 0,
+      floors: 0,
+    };
+  }
+
   return {
     steps: data.summary.steps,
     calories: data.summary.caloriesOut,
@@ -170,15 +186,20 @@ export async function getSimplifiedHeartRateData(
       return null;
     }
 
-    return {
-      restingHeartRate: heartData.value.restingHeartRate,
-      zones: heartData.value.heartRateZones.map(zone => ({
+    // Only store zones that have activity (minutes > 0)
+    const activeZones = heartData.value.heartRateZones
+      .filter(zone => zone.minutes > 0)
+      .map(zone => ({
         name: zone.name,
         min: zone.min,
         max: zone.max,
         minutes: zone.minutes,
         calories: zone.caloriesOut,
-      })),
+      }));
+
+    return {
+      restingHeartRate: heartData.value.restingHeartRate,
+      zones: activeZones,
     };
   } catch (error) {
     console.error('Error fetching heart rate:', error);
@@ -198,20 +219,34 @@ export async function getSimplifiedSleepData(
       return null;
     }
 
-    return {
+    // Build clean sleep data object
+    const sleepData: SimplifiedSleepData = {
       duration: sleep.duration,
       efficiency: sleep.efficiency,
       minutesAsleep: sleep.minutesAsleep,
       minutesAwake: sleep.minutesAwake,
       startTime: sleep.startTime,
       endTime: sleep.endTime,
-      stages: sleep.levels?.summary ? {
-        deep: sleep.levels.summary.deep?.minutes || 0,
-        light: sleep.levels.summary.light?.minutes || 0,
-        rem: sleep.levels.summary.rem?.minutes || 0,
-        wake: sleep.levels.summary.wake?.minutes || 0,
-      } : undefined,
     };
+
+    // Only include stages if they exist and have data
+    if (sleep.levels?.summary) {
+      const stages = sleep.levels.summary;
+      const hasStages = (stages.deep?.minutes || 0) > 0 || 
+                       (stages.light?.minutes || 0) > 0 || 
+                       (stages.rem?.minutes || 0) > 0;
+      
+      if (hasStages) {
+        sleepData.stages = {
+          deep: stages.deep?.minutes || 0,
+          light: stages.light?.minutes || 0,
+          rem: stages.rem?.minutes || 0,
+          wake: stages.wake?.minutes || 0,
+        };
+      }
+    }
+
+    return sleepData;
   } catch (error) {
     console.error('Error fetching sleep:', error);
     return null;

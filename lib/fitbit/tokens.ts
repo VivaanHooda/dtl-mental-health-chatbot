@@ -17,6 +17,9 @@ export interface StoredTokens {
   refresh_token: string;
   expires_at: string;
   scope: string;
+  fitbit_display_name?: string;
+  fitbit_avatar_url?: string;
+  fitbit_member_since?: string;
 }
 
 // Exchange authorization code for access tokens

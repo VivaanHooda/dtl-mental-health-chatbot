@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
           fitbitUserId: tokens.fitbit_user_id,
           scope: tokens.scope,
           expiresAt: tokens.expires_at,
+          displayName: tokens.fitbit_display_name,
+          avatarUrl: tokens.fitbit_avatar_url,
+          memberSince: tokens.fitbit_member_since,
         };
       }
     }
