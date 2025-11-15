@@ -68,6 +68,22 @@ export default function SignUpPage() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
+        // Create user profile with default 'student' role
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: data.user.id,
+            email: formData.email,
+            username: formData.username,
+            role: 'student' // Default role for new signups
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          // Don't fail the signup if profile creation fails
+          // The user can still login and we'll create profile later
+        }
+
         setSuccess(true);
         setTimeout(() => {
           router.push('/login');

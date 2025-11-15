@@ -45,7 +45,21 @@ export default function LoginPage() {
       if (signInError) throw signInError;
 
       if (data.user) {
-        router.push('/dashboard'); // Redirect to dashboard after login
+        // Check user role to determine where to redirect
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          router.push('/dashboard'); // Default to dashboard if error
+        } else if (profile?.role === 'admin') {
+          router.push('/admin'); // Redirect admins to admin panel
+        } else {
+          router.push('/dashboard'); // Redirect students to dashboard
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
