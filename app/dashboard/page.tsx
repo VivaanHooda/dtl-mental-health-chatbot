@@ -34,7 +34,6 @@ export default function DashboardPage() {
     const fitbitError = searchParams.get('fitbit_error');
 
     if (fitbitConnected === 'true') {
-      // Show success message
       const successMessage: Message = {
         id: Date.now().toString(),
         content: "Great! Your Fitbit has been connected successfully. I can now provide better insights based on your health data.",
@@ -43,7 +42,6 @@ export default function DashboardPage() {
       };
       setMessages([successMessage]);
     } else if (fitbitError) {
-      // Show error message
       const errorMessage: Message = {
         id: Date.now().toString(),
         content: `There was an issue connecting your Fitbit: ${fitbitError}. Please try again or contact support if the problem persists.`,
@@ -77,17 +75,53 @@ export default function DashboardPage() {
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual API call later)
-    setTimeout(() => {
+    try {
+      // Call the chat API with RAG integration
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: inputMessage,
+          conversationHistory: messages.slice(-6).map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I hear you. Thank you for sharing that with me. Remember, I'm here to support you, but I'm an AI assistant. For serious concerns, please reach out to a mental health professional. How can I help you today?",
+        content: data.response,
         role: 'assistant',
         timestamp: new Date()
       };
+
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Log if RAG context was used
+      if (data.contextUsed && data.sources?.length > 0) {
+        console.log('📚 Used context from:', data.sources.map((s: any) => s.filename).join(', '));
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I apologize, but I'm having trouble responding right now. Please try again in a moment.",
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleLogout = async () => {
@@ -199,7 +233,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className="text-slate-800 dark:text-slate-100 leading-relaxed">{message.content}</p>
+                    <p className="text-slate-800 dark:text-slate-100 leading-relaxed whitespace-pre-wrap">{message.content}</p>
                   </div>
                 </div>
               ))}
@@ -243,7 +277,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-              AI companion • Not a replacement for professional care
+              AI companion powered by Gemini • Not a replacement for professional care
             </p>
           </form>
         </div>

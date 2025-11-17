@@ -1,4 +1,5 @@
 import { Pinecone } from '@pinecone-database/pinecone';
+import { generateEmbedding } from '@/lib/gemini/client';
 
 // Initialize Pinecone client
 let pineconeClient: Pinecone | null = null;
@@ -12,14 +13,7 @@ export function getPineconeClient(): Pinecone {
   return pineconeClient;
 }
 
-// Generate dummy embeddings (1024 dimensions of RANDOM numbers)
-// UPDATED: Now returns random values to avoid the "Dense vectors must contain at least one non-zero value" error
-function generateDummyEmbedding(): number[] {
-  // Create an array of 1024 random numbers between 0 and 1
-  return Array.from({ length: 1024 }, () => Math.random());
-}
-
-// Store document chunks in Pinecone
+// Store document chunks in Pinecone with real Gemini embeddings
 export async function storeDocumentChunks(
   chunks: { text: string; metadata: any }[],
   documentId: string,
@@ -28,10 +22,18 @@ export async function storeDocumentChunks(
   const pinecone = getPineconeClient();
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
 
-  // Create vectors with dummy embeddings
+  console.log('🔵 PINECONE: Generating embeddings for', chunks.length, 'chunks...');
+  
+  // Generate embeddings for all chunks
+  const embeddingsPromises = chunks.map(chunk => generateEmbedding(chunk.text));
+  const embeddings = await Promise.all(embeddingsPromises);
+  
+  console.log('🟢 PINECONE: All embeddings generated');
+
+  // Create vectors with real Gemini embeddings
   const vectors = chunks.map((chunk, idx) => ({
     id: `${documentId}-chunk-${idx}`,
-    values: generateDummyEmbedding(), // Random embedding
+    values: embeddings[idx],
     metadata: {
       ...chunk.metadata,
       documentId,
@@ -41,18 +43,22 @@ export async function storeDocumentChunks(
     },
   }));
 
+  console.log('🔵 PINECONE: Upserting vectors to index...');
+
   // Upsert vectors in batches of 100
   const batchSize = 100;
   for (let i = 0; i < vectors.length; i += batchSize) {
     const batch = vectors.slice(i, i + batchSize);
     try {
       await index.upsert(batch);
+      console.log(`🟢 PINECONE: Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectors.length / batchSize)}`);
     } catch (error) {
       console.error(`Error upserting batch starting at index ${i}:`, error);
       throw error;
     }
   }
 
+  console.log('🟢 PINECONE: All vectors stored successfully');
   return vectors.length;
 }
 
