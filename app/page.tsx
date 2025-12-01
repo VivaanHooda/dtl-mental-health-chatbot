@@ -57,7 +57,7 @@ export default function LandingPage() {
           <FeatureCard
             icon={<Shield className="w-8 h-8 text-emerald-500" />}
             title="Privacy-First Design"
-            description="Federated learning and differential privacy to protect your data"
+            description="Secure data storage with role-based access and encrypted connections"
           />
           <FeatureCard
             icon={<Heart className="w-8 h-8 text-rose-500" />}
@@ -81,13 +81,13 @@ export default function LandingPage() {
           />
           <PrincipleCard
             icon={<Shield className="w-8 h-8 text-emerald-500" />}
-            title="Privacy by Design"
-            description="Federated learning keeps your data on your device. Differential privacy ensures complete anonymity."
+            title="Privacy & Security"
+            description="Your health data is encrypted and securely stored. We follow industry best practices for data protection and user privacy."
           />
           <PrincipleCard
             icon={<Heart className="w-8 h-8 text-rose-500" />}
             title="Ethical & Transparent"
-            description="Always clearly identified as AI with built-in dependency prevention and well-being prioritization."
+            description="Always clearly identified as AI with crisis detection, emergency resources, and well-being prioritization."
           />
           <PrincipleCard
             icon={<Users className="w-8 h-8 text-sky-500" />}
