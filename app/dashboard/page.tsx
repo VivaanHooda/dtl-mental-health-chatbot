@@ -91,11 +91,14 @@ export default function DashboardPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // Show specific error from API
+        const errorMsg = data.error || 'Failed to get response';
+        console.error('API Error:', errorMsg);
+        throw new Error(errorMsg);
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -110,11 +113,25 @@ export default function DashboardPage() {
       if (data.contextUsed && data.sources?.length > 0) {
         console.log('📚 Used context from:', data.sources.map((s: any) => s.filename).join(', '));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      
+      // Provide more specific error messages based on the error
+      let errorContent = "I apologize, but I'm having trouble responding right now.";
+      
+      if (error.message?.includes('API key')) {
+        errorContent = "⚠️ The AI service is not properly configured. Please contact support or check the console for details.";
+      } else if (error.message?.includes('rate limit')) {
+        errorContent = "⚠️ I'm receiving too many requests right now. Please wait a moment and try again.";
+      } else if (error.message?.includes('configured')) {
+        errorContent = error.message; // Show the specific configuration error
+      } else {
+        errorContent += " Please try again in a moment.";
+      }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I apologize, but I'm having trouble responding right now. Please try again in a moment.",
+        content: errorContent,
         role: 'assistant',
         timestamp: new Date()
       };

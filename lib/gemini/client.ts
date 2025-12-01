@@ -16,8 +16,11 @@ export function getGeminiClient(): GoogleGenerativeAI {
   if (!geminiClient) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set');
+      console.error('🔴 GEMINI: API key not found in environment variables');
+      console.error('🔴 GEMINI: Please add GEMINI_API_KEY to your .env.local file');
+      throw new Error('GEMINI_API_KEY is not set. Please add it to your .env.local file');
     }
+    console.log('🟢 GEMINI: API key found, initializing client');
     geminiClient = new GoogleGenerativeAI(apiKey);
   }
   return geminiClient;
@@ -47,9 +50,9 @@ export async function generateWithContext(
 
   const genAI = getGeminiClient();
   
-  // Use Gemini 1.5 Flash - faster, cheaper, better rate limits
+  // Use Gemini 2.0 Flash - latest experimental model
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-2.5-flash",
     generationConfig: {
       temperature: 0.7,
       topP: 0.8,
@@ -95,13 +98,30 @@ Please provide a thoughtful, supportive response that:
 Remember: You're here to support, not diagnose or treat. Be helpful, be kind, be informed.`;
 
   try {
+    console.log('🔵 GEMINI: Generating response...');
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
+    console.log('🟢 GEMINI: Response generated successfully');
     
     return text;
   } catch (error: any) {
-    console.error('Gemini API error:', error);
+    console.error('🔴 GEMINI: API error:', {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      details: error.details || error
+    });
+    
+    // Provide more helpful error messages
+    if (error.message?.includes('API key')) {
+      throw new Error('Invalid or missing Gemini API key. Please check your .env.local file');
+    } else if (error.status === 429) {
+      throw new Error('Gemini API rate limit exceeded. Please try again in a moment');
+    } else if (error.message?.includes('model not found')) {
+      throw new Error('Gemini model not found. The model name may be incorrect');
+    }
+    
     throw new Error(`Failed to generate response: ${error.message}`);
   }
 }
