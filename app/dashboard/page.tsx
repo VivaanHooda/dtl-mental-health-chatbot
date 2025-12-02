@@ -5,6 +5,8 @@ import { Send, LogOut, Sparkles, User as UserIcon, Menu, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import FitbitWidget from '@/components/FitbitWidget';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
@@ -250,7 +252,11 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className="text-slate-800 dark:text-slate-100 leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-code:text-cyan-600 dark:prose-code:text-cyan-400 prose-strong:text-slate-900 dark:prose-strong:text-slate-100">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))}

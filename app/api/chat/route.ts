@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { queryRAG } from '@/lib/rag/query';
 import { generateWithContext } from '@/lib/gemini/client';
 import { detectCrisis, getEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
-import { buildMemoryContext, saveConversationSummary } from '@/lib/memory/user-memory';
+import { generateMemoryContext } from '@/lib/memory/user-memory';
+import { extractMemoryFromConversation } from '@/lib/memory/memory-extraction';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
     let memoryContext = '';
     try {
       console.log('🔵 CHAT: Building memory context...');
-      memoryContext = await buildMemoryContext(user.id);
+      memoryContext = await generateMemoryContext(user.id);
       if (memoryContext) {
         console.log('🟢 CHAT: Memory context built:', memoryContext.substring(0, 100) + '...');
       }
@@ -170,14 +171,13 @@ export async function POST(request: NextRequest) {
         ];
         
         // Don't await - let it run in background
-        saveConversationSummary(user.id, allMessages, !!fitbitData, isCrisis)
+        extractMemoryFromConversation(user.id, allMessages, !!fitbitData, isCrisis)
           .catch(err => console.warn('⚠️ CHAT: Background memory extraction failed:', err));
         
         console.log('🧠 CHAT: Memory extraction queued in background');
       } catch (memError) {
         console.warn('⚠️ CHAT: Failed to queue memory extraction:', memError);
       }
-    } // Don't fail the request if DB save fails
     }
 
     // Return response with metadata about sources and health data used

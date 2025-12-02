@@ -106,6 +106,8 @@ export async function storeTokens(userId: string, tokens: FitbitTokens): Promise
       refresh_token: tokens.refresh_token,
       expires_at: expiresAt,
       scope: tokens.scope,
+    }, {
+      onConflict: 'user_id'
     })
     .select();
 

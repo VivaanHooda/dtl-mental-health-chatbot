@@ -53,7 +53,10 @@ export default function LoginPage() {
           .single();
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError);
+          // Profile not found or error - this is OK for new users
+          if (profileError.code !== 'PGRST116') { // Only log if not "no rows" error
+            console.warn('Profile lookup issue:', profileError.message);
+          }
           router.push('/dashboard'); // Default to dashboard if error
         } else if (profile?.role === 'admin') {
           router.push('/admin'); // Redirect admins to admin panel

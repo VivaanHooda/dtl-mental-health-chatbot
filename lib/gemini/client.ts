@@ -8,8 +8,8 @@ let geminiClient: GoogleGenerativeAI | null = null;
 // Rate limiting: Track last request time
 let lastEmbeddingRequest = 0;
 let lastGenerationRequest = 0;
-const EMBEDDING_DELAY_MS = 5000; // 5 seconds between embedding requests (12 per minute = safe)
-const GENERATION_DELAY_MS = 2000; // 2 seconds between generation requests
+const EMBEDDING_DELAY_MS = 0; // No delay - single user development
+const GENERATION_DELAY_MS = 0; // No delay - single user development
 
 export function getGeminiClient(): GoogleGenerativeAI {
   if (!geminiClient) {
