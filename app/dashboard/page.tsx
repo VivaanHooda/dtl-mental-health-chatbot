@@ -259,7 +259,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   <div className="flex-1">
-                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100 prose-code:text-cyan-600 dark:prose-code:text-cyan-400 prose-strong:text-slate-900 dark:prose-strong:text-slate-100">
+                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:mb-3 prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-h3:text-lg prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-cyan-500 prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-3 prose-strong:text-slate-900 dark:prose-strong:text-slate-100 prose-strong:font-semibold prose-em:text-slate-700 dark:prose-em:text-slate-300 prose-code:text-cyan-600 dark:prose-code:text-cyan-400 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-800 prose-pre:text-slate-100">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {message.content}
                       </ReactMarkdown>
