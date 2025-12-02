@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatDisabled, setChatDisabled] = useState(false); // Track if chat is disabled
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,7 +65,7 @@ export default function DashboardPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || chatDisabled) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -110,6 +111,12 @@ export default function DashboardPage() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Check if chat should be disabled due to severe crisis
+      if (data.chatDisabled) {
+        setChatDisabled(true);
+        console.log('🚨 CHAT DISABLED: Severe crisis detected');
+      }
       
       // Log if RAG context was used
       if (data.contextUsed && data.sources?.length > 0) {
@@ -281,28 +288,49 @@ export default function DashboardPage() {
 
         {/* Input Area */}
         <div className="border-t border-slate-200 dark:border-slate-800 p-4">
-          <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
-            <div className="flex gap-3 items-end bg-slate-50 dark:bg-slate-800 rounded-3xl px-4 py-2 border border-slate-200 dark:border-slate-700 focus-within:border-cyan-500 dark:focus-within:border-cyan-500 transition-colors">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask me anything about mental health..."
-                className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || isLoading}
-                className="p-2 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send className="w-5 h-5" />
-              </button>
+          {chatDisabled ? (
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-3xl px-6 py-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shrink-0">
+                    <span className="text-white text-xl">🚨</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-red-900 dark:text-red-100">Chat Temporarily Disabled</h3>
+                    <p className="text-sm text-red-800 dark:text-red-200">Please contact emergency services or a mental health professional immediately.</p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
+                  <p className="text-xs text-red-700 dark:text-red-300">
+                    For your safety, this chat has been disabled. Please use the emergency resources provided above.
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-              AI companion powered by Gemini • Not a replacement for professional care
-            </p>
-          </form>
+          ) : (
+            <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+              <div className="flex gap-3 items-end bg-slate-50 dark:bg-slate-800 rounded-3xl px-4 py-2 border border-slate-200 dark:border-slate-700 focus-within:border-cyan-500 dark:focus-within:border-cyan-500 transition-colors">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ask me anything about mental health..."
+                  className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!inputMessage.trim() || isLoading}
+                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+                AI companion powered by Gemini • Not a replacement for professional care
+              </p>
+            </form>
+          )}
         </div>
       </main>
     </div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { queryRAG } from '@/lib/rag/query';
 import { generateWithContext } from '@/lib/gemini/client';
-import { detectCrisis, getEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
+import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
 import { generateMemoryContext } from '@/lib/memory/user-memory';
 import { extractMemoryFromConversation } from '@/lib/memory/memory-extraction';
 
@@ -38,7 +38,47 @@ export async function POST(request: NextRequest) {
 
     console.log('🔵 CHAT: User message:', message.substring(0, 100));
 
-    // Step 0: Check for crisis indicators
+    // Step 0: Check for SEVERE crisis indicators - disable chat if detected
+    const isSevereCrisis = detectSevereCrisis(message);
+    if (isSevereCrisis) {
+      console.log('🚨🚨 CHAT: SEVERE CRISIS DETECTED - CHAT DISABLED - EMERGENCY RESPONSE ONLY');
+      
+      // Return emergency resources immediately without AI processing
+      const emergencyResponse = getSevereEmergencyResourcesText();
+      
+      // Store the emergency interaction
+      try {
+        await supabase.from('chat_messages').insert([
+          {
+            user_id: user.id,
+            role: 'user',
+            content: message,
+            created_at: new Date().toISOString(),
+          },
+          {
+            user_id: user.id,
+            role: 'assistant',
+            content: emergencyResponse,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } catch (dbError) {
+        console.warn('⚠️ CHAT: Failed to save emergency interaction:', dbError);
+      }
+      
+      return NextResponse.json({
+        success: true,
+        response: emergencyResponse,
+        sources: [],
+        contextUsed: false,
+        fitbitDataUsed: false,
+        crisisDetected: true,
+        severeCrisis: true,
+        chatDisabled: true, // Signal to frontend to disable chat
+      });
+    }
+
+    // Check for regular crisis indicators
     const isCrisis = detectCrisis(message);
     if (isCrisis) {
       console.log('🚨 CHAT: CRISIS DETECTED - Priority response mode');

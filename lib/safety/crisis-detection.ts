@@ -1,14 +1,26 @@
 // Crisis detection keywords and emergency resources
 
-export const CRISIS_KEYWORDS = [
-  // Self-harm indicators
+// SEVERE crisis keywords that disable chat entirely
+export const SEVERE_CRISIS_KEYWORDS = [
+  'suicide',
   'kill myself',
   'end my life',
   'commit suicide',
   'suicidal',
   'want to die',
+  'end it all',
   'better off dead',
   'no reason to live',
+  'planning to die',
+  'going to kill',
+  'hang myself',
+  'jump off',
+  'overdose on purpose',
+];
+
+// Regular crisis keywords (chat continues with support)
+export const CRISIS_KEYWORDS = [
+  // Self-harm indicators
   'hurt myself',
   'self harm',
   'cut myself',
@@ -20,7 +32,6 @@ export const CRISIS_KEYWORDS = [
   'hopeless',
   'worthless',
   'no point in living',
-  'end it all',
 ];
 
 export const EMERGENCY_RESOURCES = {
@@ -68,13 +79,55 @@ export const EMERGENCY_RESOURCES = {
 };
 
 /**
+ * Detects if a message contains SEVERE crisis indicators that require disabling chat
+ * @param message - User's message to analyze
+ * @returns true if severe crisis keywords detected
+ */
+export function detectSevereCrisis(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  return SEVERE_CRISIS_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+}
+
+/**
  * Detects if a message contains crisis indicators
  * @param message - User's message to analyze
  * @returns true if crisis keywords detected
  */
 export function detectCrisis(message: string): boolean {
   const lowerMessage = message.toLowerCase();
-  return CRISIS_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  return CRISIS_KEYWORDS.some(keyword => lowerMessage.includes(keyword)) || detectSevereCrisis(message);
+}
+
+/**
+ * Gets formatted emergency resources text for severe crisis
+ * @returns Formatted emergency resources string for chat-disabling situations
+ */
+export function getSevereEmergencyResourcesText(): string {
+  const resources = EMERGENCY_RESOURCES.india;
+  
+  let text = `🚨 **EMERGENCY - PLEASE SEEK IMMEDIATE HELP** 🚨\n\n`;
+  text += `I'm deeply concerned about what you've shared. **This chat cannot provide the urgent support you need right now.**\n\n`;
+  text += `**Please contact one of these resources IMMEDIATELY:**\n\n`;
+  
+  text += `**24/7 Crisis Hotlines (Call NOW):**\n`;
+  resources.hotlines.forEach(hotline => {
+    text += `• **${hotline.name}**: **${hotline.number}** (${hotline.hours})\n`;
+  });
+  
+  text += `\n**Emergency Services:**\n`;
+  text += `• **Call 108** for immediate medical assistance\n`;
+  text += `• Visit the nearest hospital emergency room\n`;
+  text += `• Contact campus security or go to Student Welfare Office\n\n`;
+  
+  text += `**Please tell someone you trust right now:**\n`;
+  text += `• A friend or family member\n`;
+  text += `• Your roommate or hostel warden\n`;
+  text += `• A professor or counselor\n\n`;
+  
+  text += `**Your life matters. Professional help is available. You are not alone.**\n\n`;
+  text += `*This chat is temporarily disabled for your safety. Please use the resources above.*`;
+  
+  return text;
 }
 
 /**
