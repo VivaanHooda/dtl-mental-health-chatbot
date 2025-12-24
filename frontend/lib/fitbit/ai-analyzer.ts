@@ -1,0 +1,214 @@
+/**
+ * AI-Powered Fitbit Health Analysis
+ * 
+ * Uses a fine-tuned model to analyze Fitbit health data and generate 
+ * personalized mental health insights. This replaces rule-based analysis
+ * with intelligent, context-aware recommendations.
+ */
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+interface FitbitDataPoint {
+  date: string;
+  type: 'activity' | 'heartrate' | 'sleep';
+  data: any;
+}
+
+interface AIHealthInsight {
+  summary: string;
+  mentalHealthCorrelation: string;
+  recommendations: string[];
+  urgencyLevel: 'low' | 'moderate' | 'high';
+  patterns: string[];
+}
+
+/**
+ * Analyze Fitbit data using AI model (Gemini fine-tuned or base)
+ * @param fitbitData - Recent Fitbit data (last 7 days)
+ * @param userContext - Additional context (optional: past conversations, concerns)
+ * @returns AI-generated health insights
+ */
+export async function analyzeHealthDataWithAI(
+  fitbitData: FitbitDataPoint[],
+  userContext?: string
+): Promise<AIHealthInsight | null> {
+  if (!fitbitData || fitbitData.length === 0) {
+    return null;
+  }
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('⚠️ FITBIT AI: Gemini API key not found, skipping AI analysis');
+      return null;
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // TODO: Replace with your fine-tuned model ID when ready
+    // const model = genAI.getGenerativeModel({ model: "tunedModels/fitbit-mental-health-v1" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
+        temperature: 0.5, // Lower for more consistent analysis
+        topP: 0.8,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    // Prepare structured data for analysis
+    const dataByType = organizeDataByType(fitbitData);
+    
+    const prompt = `You are a specialized AI trained to analyze health data and identify correlations with mental health for college students.
+
+## Health Data (Last 7 Days):
+
+${formatDataForAnalysis(dataByType)}
+
+${userContext ? `## Student Context:\n${userContext}\n` : ''}
+
+## Task:
+Analyze this health data and provide insights in JSON format:
+
+{
+  "summary": "Brief 2-3 sentence summary of overall health patterns",
+  "mentalHealthCorrelation": "How these health metrics may affect mental well-being (anxiety, stress, mood, cognition)",
+  "recommendations": ["Specific actionable recommendation 1", "Specific actionable recommendation 2", "Specific actionable recommendation 3"],
+  "urgencyLevel": "low|moderate|high",
+  "patterns": ["Notable pattern 1", "Notable pattern 2"]
+}
+
+## Guidelines:
+- Focus on mental health implications (stress, anxiety, depression, cognitive function)
+- Be empathetic and supportive in tone
+- Provide specific, actionable recommendations
+- Consider college student context (exams, social life, sleep schedule)
+- Set urgencyLevel based on concerning patterns (e.g., severe sleep deprivation = high)
+- Identify trends over the 7-day period
+
+IMPORTANT: Return ONLY valid JSON, no additional text.`;
+
+    console.log('🔵 FITBIT AI: Analyzing health data with AI model...');
+    const result = await model.generateContent(prompt);
+    const response = result.response.text();
+    
+    // Parse JSON response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('🔴 FITBIT AI: Failed to parse JSON response');
+      return null;
+    }
+
+    const insights: AIHealthInsight = JSON.parse(jsonMatch[0]);
+    console.log('🟢 FITBIT AI: Analysis complete. Urgency:', insights.urgencyLevel);
+    
+    return insights;
+  } catch (error: any) {
+    console.error('🔴 FITBIT AI: Error analyzing health data:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Organize Fitbit data by type for cleaner analysis
+ */
+function organizeDataByType(data: FitbitDataPoint[]): {
+  sleep: FitbitDataPoint[];
+  activity: FitbitDataPoint[];
+  heartRate: FitbitDataPoint[];
+} {
+  return {
+    sleep: data.filter(d => d.type === 'sleep'),
+    activity: data.filter(d => d.type === 'activity'),
+    heartRate: data.filter(d => d.type === 'heartrate'),
+  };
+}
+
+/**
+ * Format data for AI prompt
+ */
+function formatDataForAnalysis(dataByType: {
+  sleep: FitbitDataPoint[];
+  activity: FitbitDataPoint[];
+  heartRate: FitbitDataPoint[];
+}): string {
+  let formatted = '';
+
+  // Sleep Data
+  if (dataByType.sleep.length > 0) {
+    formatted += '### Sleep Patterns:\n';
+    dataByType.sleep.forEach(d => {
+      const hours = Math.floor((d.data.minutesAsleep || 0) / 60);
+      const minutes = (d.data.minutesAsleep || 0) % 60;
+      formatted += `- ${d.date}: ${hours}h ${minutes}m sleep, ${d.data.efficiency || 'N/A'}% efficiency`;
+      if (d.data.stages) {
+        formatted += ` (Deep: ${d.data.stages.deep || 0}m, REM: ${d.data.stages.rem || 0}m, Light: ${d.data.stages.light || 0}m)`;
+      }
+      formatted += '\n';
+    });
+    formatted += '\n';
+  }
+
+  // Activity Data
+  if (dataByType.activity.length > 0) {
+    formatted += '### Physical Activity:\n';
+    dataByType.activity.forEach(d => {
+      formatted += `- ${d.date}: ${d.data.steps || 0} steps, ${d.data.activeMinutes || 0} active mins, ${d.data.calories || 0} cal, ${d.data.distance || 0} km\n`;
+    });
+    formatted += '\n';
+  }
+
+  // Heart Rate Data
+  if (dataByType.heartRate.length > 0) {
+    formatted += '### Heart Rate:\n';
+    dataByType.heartRate.forEach(d => {
+      formatted += `- ${d.date}: Resting HR ${d.data.restingHeartRate || 'N/A'} bpm`;
+      if (d.data.zones && Array.isArray(d.data.zones)) {
+        const cardio = d.data.zones.find((z: any) => z.name === 'Cardio');
+        const fatBurn = d.data.zones.find((z: any) => z.name === 'Fat Burn');
+        if (cardio || fatBurn) {
+          formatted += ` (Cardio: ${cardio?.minutes || 0}m, Fat Burn: ${fatBurn?.minutes || 0}m)`;
+        }
+      }
+      formatted += '\n';
+    });
+  }
+
+  return formatted || 'No health data available.';
+}
+
+/**
+ * Format AI insights for memory storage
+ */
+export function formatAIInsightsForMemory(insights: AIHealthInsight, dateRange: string): string {
+  return `[HEALTH ANALYSIS ${dateRange}] ${insights.summary} Mental Health Impact: ${insights.mentalHealthCorrelation} Urgency: ${insights.urgencyLevel.toUpperCase()}.`;
+}
+
+/**
+ * Format AI insights for display in chat
+ */
+export function formatAIInsightsForChat(insights: AIHealthInsight): string {
+  let formatted = '### 📊 Your Health Analysis\n\n';
+  formatted += `${insights.summary}\n\n`;
+  
+  if (insights.mentalHealthCorrelation) {
+    formatted += `**Mental Health Connection:** ${insights.mentalHealthCorrelation}\n\n`;
+  }
+  
+  if (insights.recommendations.length > 0) {
+    formatted += '**Recommendations:**\n';
+    insights.recommendations.forEach((rec, idx) => {
+      formatted += `${idx + 1}. ${rec}\n`;
+    });
+    formatted += '\n';
+  }
+  
+  if (insights.patterns.length > 0) {
+    formatted += '**Patterns Observed:**\n';
+    insights.patterns.forEach(pattern => {
+      formatted += `- ${pattern}\n`;
+    });
+  }
+  
+  return formatted;
+}

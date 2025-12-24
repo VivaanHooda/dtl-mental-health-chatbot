@@ -87,7 +87,7 @@ function DashboardContent() {
         },
         body: JSON.stringify({
           message: inputMessage,
-          conversationHistory: messages.slice(-6).map(msg => ({
+          conversationHistory: messages.slice(-2).map(msg => ({
             role: msg.role,
             content: msg.content
           }))

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { queryRAG } from '@/lib/rag/query';
 import { generateWithContext } from '@/lib/gemini/client';
 import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
+import { searchMemories, addMemory, MEMORY_CATEGORIES } from '@/lib/mem0/client';
+import { analyzeHealthDataWithAI, formatAIInsightsForMemory } from '@/lib/fitbit/ai-analyzer';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
@@ -82,7 +84,32 @@ export async function POST(request: NextRequest) {
       console.log('🚨 CHAT: CRISIS DETECTED - Priority response mode');
     }
 
-    // Step 1: Fetch Fitbit health data for context
+    // Step 1: Retrieve relevant memories from Mem0 (gracefully handle failures)
+    let userMemories: any[] = [];
+    try {
+      console.log('🔵 CHAT: Retrieving user memories from Mem0...');
+      
+      const memoryResult = await searchMemories(user.id, message, {
+        limit: 5,
+        threshold: 0.3,
+      });
+      
+      if (memoryResult.success && memoryResult.memories) {
+        userMemories = memoryResult.memories;
+        console.log('🟢 CHAT: Retrieved', userMemories.length, 'relevant memories');
+        
+        // Log memory categories being used
+        if (userMemories.length > 0) {
+          const categories = [...new Set(userMemories.map(m => m.category).filter(Boolean))];
+          console.log('🧠 CHAT: Memory categories:', categories.join(', '));
+        }
+      }
+    } catch (memoryError: any) {
+      console.warn('⚠️ CHAT: Memory retrieval failed, continuing without memories:', memoryError.message);
+      // Continue without memories - not critical for chat functionality
+    }
+
+    // Step 2: Fetch Fitbit health data for context
     let fitbitData: any = null;
     try {
       console.log('🔵 CHAT: Fetching Fitbit health data...');
@@ -122,7 +149,34 @@ export async function POST(request: NextRequest) {
       // Continue without Fitbit data - not critical
     }
 
-    // Step 2: Query RAG system to get relevant context (optional - gracefully handle failures)
+    // Step 2.5: Generate AI-powered health insights if Fitbit data available
+    let healthInsightsText: string = '';
+    let aiHealthInsights: any = null;
+    if (fitbitData?.recentData && fitbitData.recentData.length > 0) {
+      try {
+        // Get user context from recent memories for better analysis
+        const memoryContext = userMemories.length > 0 
+          ? userMemories.map(m => m.memory).join('. ')
+          : undefined;
+        
+        // Use AI model to analyze health data
+        aiHealthInsights = await analyzeHealthDataWithAI(
+          fitbitData.recentData,
+          memoryContext
+        );
+        
+        if (aiHealthInsights) {
+          const dateRange = `${fitbitData.recentData[fitbitData.recentData.length - 1]?.date} to ${fitbitData.recentData[0]?.date}`;
+          healthInsightsText = formatAIInsightsForMemory(aiHealthInsights, dateRange);
+          console.log('🟢 CHAT: AI health analysis complete. Urgency:', aiHealthInsights.urgencyLevel);
+        }
+      } catch (insightError: any) {
+        console.warn('⚠️ CHAT: Failed to generate AI health insights:', insightError.message);
+        // Fallback: Continue without health insights
+      }
+    }
+
+    // Step 3: Query RAG system to get relevant context (optional - gracefully handle failures)
     let relevantChunks: any[] = [];
     const ragEnabled = process.env.ENABLE_RAG !== 'false'; // Default to true unless explicitly disabled
     
@@ -146,17 +200,19 @@ export async function POST(request: NextRequest) {
       console.log('⚪ CHAT: RAG disabled via environment variable, skipping context retrieval');
     }
 
-    // Step 3: Generate response using Gemini with RAG context + Fitbit data
+    // Step 4: Generate response using Gemini with RAG context + Fitbit data + Mem0 memories
     console.log('🔵 CHAT: Generating response with Gemini...');
     const response = await generateWithContext(
       message,
       relevantChunks,
       conversationHistory || [],
       fitbitData,
-      isCrisis
+      isCrisis,
+      userMemories, // Pass memories to Gemini
+      aiHealthInsights // Pass AI-generated health insights
     );
 
-    // Step 3.5: If crisis detected, append emergency resources
+    // Step 4.5: If crisis detected, append emergency resources
     let finalResponse = response;
     if (isCrisis) {
       finalResponse = response + '\n\n' + getEmergencyResourcesText();
@@ -164,7 +220,34 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🟢 CHAT: Response generated successfully');
-    // Step 4: Store the conversation in database (optional, for history)
+    
+    // Step 5: Store AI health insights as memories (async, non-blocking)
+    if (healthInsightsText && aiHealthInsights) {
+      addMemory(user.id, [
+        { role: 'user', content: 'Health data analysis requested' },
+        { role: 'assistant', content: healthInsightsText }
+      ], {
+        category: MEMORY_CATEGORIES.HEALTH_INSIGHTS,
+        urgency: aiHealthInsights.urgencyLevel,
+        patterns: aiHealthInsights.patterns,
+      }).catch(error => {
+        console.warn('⚠️ CHAT: Failed to store health insights in memory:', error);
+      });
+    }
+    
+    // Step 6: Extract and store conversation memories (async, non-blocking)
+    if (!isCrisis) { // Don't store crisis conversations as regular memories
+      addMemory(user.id, [
+        { role: 'user', content: message },
+        { role: 'assistant', content: finalResponse }
+      ], {
+        category: MEMORY_CATEGORIES.CONVERSATION,
+      }).catch(error => {
+        console.warn('⚠️ CHAT: Failed to store conversation memory:', error);
+      });
+    }
+    
+    // Step 7: Store the conversation in database (optional, for history)
     try {
       await supabase.from('chat_messages').insert([
         {
