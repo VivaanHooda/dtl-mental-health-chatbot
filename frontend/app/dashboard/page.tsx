@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Send, LogOut, Sparkles, User as UserIcon, Menu, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -15,7 +15,7 @@ interface Message {
   timestamp: Date;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -334,5 +334,20 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-cyan-900 flex items-center justify-center">
+        <div className="text-center">
+          <Sparkles className="w-12 h-12 text-cyan-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 dark:text-slate-300">Loading...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

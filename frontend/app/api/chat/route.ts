@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { queryRAG } from '@/lib/rag/query';
 import { generateWithContext } from '@/lib/gemini/client';
 import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
-import { generateMemoryContext } from '@/lib/memory/user-memory';
-import { extractMemoryFromConversation } from '@/lib/memory/memory-extraction';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
@@ -124,19 +122,7 @@ export async function POST(request: NextRequest) {
       // Continue without Fitbit data - not critical
     }
 
-    // Step 2: Build personalized memory context
-    let memoryContext = '';
-    try {
-      console.log('🔵 CHAT: Building memory context...');
-      memoryContext = await generateMemoryContext(user.id);
-      if (memoryContext) {
-        console.log('🟢 CHAT: Memory context built:', memoryContext.substring(0, 100) + '...');
-      }
-    } catch (memoryError: any) {
-      console.warn('⚠️ CHAT: Failed to build memory context:', memoryError.message);
-    }
-
-    // Step 3: Query RAG system to get relevant context (optional - gracefully handle failures)
+    // Step 2: Query RAG system to get relevant context (optional - gracefully handle failures)
     let relevantChunks: any[] = [];
     const ragEnabled = process.env.ENABLE_RAG !== 'false'; // Default to true unless explicitly disabled
     
@@ -160,15 +146,14 @@ export async function POST(request: NextRequest) {
       console.log('⚪ CHAT: RAG disabled via environment variable, skipping context retrieval');
     }
 
-    // Step 4: Generate response using Gemini with RAG context + Fitbit data + Memory
+    // Step 3: Generate response using Gemini with RAG context + Fitbit data
     console.log('🔵 CHAT: Generating response with Gemini...');
     const response = await generateWithContext(
       message,
       relevantChunks,
       conversationHistory || [],
       fitbitData,
-      isCrisis,
-      memoryContext
+      isCrisis
     );
 
     // Step 3.5: If crisis detected, append emergency resources
@@ -179,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🟢 CHAT: Response generated successfully');
-    // Step 5: Store the conversation in database (optional, for history)
+    // Step 4: Store the conversation in database (optional, for history)
     try {
       await supabase.from('chat_messages').insert([
         {
@@ -199,25 +184,6 @@ export async function POST(request: NextRequest) {
     } catch (dbError) {
       console.warn('⚠️ CHAT: Failed to save conversation:', dbError);
       // Don't fail the request if DB save fails
-    }
-
-    // Step 6: Extract and save memory from this conversation (async, don't wait)
-    if ((conversationHistory || []).length >= 4) { // Only extract after meaningful conversation
-      try {
-        const allMessages = [
-          ...(conversationHistory || []),
-          { role: 'user' as const, content: message },
-          { role: 'assistant' as const, content: finalResponse }
-        ];
-        
-        // Don't await - let it run in background
-        extractMemoryFromConversation(user.id, allMessages, !!fitbitData, isCrisis)
-          .catch(err => console.warn('⚠️ CHAT: Background memory extraction failed:', err));
-        
-        console.log('🧠 CHAT: Memory extraction queued in background');
-      } catch (memError) {
-        console.warn('⚠️ CHAT: Failed to queue memory extraction:', memError);
-      }
     }
 
     // Return response with metadata about sources and health data used

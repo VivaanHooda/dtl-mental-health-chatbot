@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getCrisisPromptAddition } from "@/lib/safety/crisis-detection";
-import { getCachedEmbedding, saveCachedEmbedding } from "@/lib/cache/embedding-cache";
 
 // Initialize Gemini client
 let geminiClient: GoogleGenerativeAI | null = null;
@@ -43,8 +42,7 @@ export async function generateWithContext(
   contextChunks: Array<{ text: string; metadata: any }>,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
   fitbitData?: any,
-  isCrisis: boolean = false,
-  memoryContext: string = ''
+  isCrisis: boolean = false
 ) {
   // Throttle generation requests
   await throttle(lastGenerationRequest, GENERATION_DELAY_MS);
@@ -131,7 +129,7 @@ ${crisisAddition}
 ## Reference Context:
 ${contextText ? contextText : 'No specific reference materials available for this query.'}
 ${healthDataText}
-${memoryContext}
+
 ${historyText ? `## Previous Conversation:\n${historyText}\n\n` : ''}## Current Student Message:
 ${userMessage}
 
@@ -185,14 +183,8 @@ Remember: You're here to support, not diagnose or treat. Be helpful, be kind, be
   }
 }
 
-// Generate embeddings using Gemini's embedding model with persistent caching and rate limiting
+// Generate embeddings using Gemini's embedding model with rate limiting
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // Check persistent cache first (memory + database)
-  const cachedEmbedding = await getCachedEmbedding(text);
-  if (cachedEmbedding) {
-    return cachedEmbedding;
-  }
-
   // Throttle embedding requests (5 seconds = max 12 per minute, safe for free tier)
   await throttle(lastEmbeddingRequest, EMBEDDING_DELAY_MS);
   lastEmbeddingRequest = Date.now();
@@ -215,12 +207,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     const paddedEmbedding = [...embeddingArray, ...Array(1024 - embeddingArray.length).fill(0)];
     const finalEmbedding = paddedEmbedding.slice(0, 1024);
     
-    // Save to persistent cache (async, don't block)
-    saveCachedEmbedding(text, finalEmbedding).catch(err => 
-      console.warn('⚠️ Failed to save embedding to cache:', err)
-    );
-    
-    console.log('✅ Embedding generated and cached');
+    console.log('✅ Embedding generated');
     return finalEmbedding;
   } catch (error: any) {
     console.error('Gemini embedding error:', error);
@@ -241,11 +228,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         
         const paddedEmbedding = [...embeddingArray, ...Array(1024 - embeddingArray.length).fill(0)];
         const finalEmbedding = paddedEmbedding.slice(0, 1024);
-        
-        // Save retry result to cache too
-        saveCachedEmbedding(text, finalEmbedding).catch(err => 
-          console.warn('⚠️ Failed to save retry embedding:', err)
-        );
         
         console.log('✅ Embedding generated after retry');
         return finalEmbedding;
