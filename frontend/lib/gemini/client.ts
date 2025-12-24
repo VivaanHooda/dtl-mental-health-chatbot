@@ -54,12 +54,12 @@ export async function generateWithContext(
   
   // Use Gemini 2.0 Flash - latest experimental model
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: "gemini-2.5-flash",
     generationConfig: {
       temperature: 0.7,
       topP: 0.9,
       topK: 40,
-      maxOutputTokens: 600,
+      maxOutputTokens: 2048,
     },
   });
 
@@ -68,8 +68,8 @@ export async function generateWithContext(
     .map((chunk, idx) => `[Context ${idx + 1}]\n${chunk.text}`)
     .join('\n\n');
 
-  // Build conversation history (last 2 messages only for speed)
-  const recentHistory = conversationHistory.slice(-2);
+  // Build conversation history (last 6 messages for better context)
+  const recentHistory = conversationHistory.slice(-6);
   const historyText = recentHistory.length > 0
     ? recentHistory.map(msg => `${msg.role === 'user' ? 'Student' : 'Assistant'}: ${msg.content}`).join('\n\n')
     : '';
