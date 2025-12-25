@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { deleteDocumentFromPinecone } from '@/lib/pinecone/client';
+import { deleteFromPinecone } from '@/lib/pinecone/delete';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-  
   try {
     const supabase = await createClient();
     
-    // Check if user is admin
+    // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check admin role
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
@@ -24,56 +23,72 @@ export async function DELETE(
       .single();
 
     if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
-    const documentId = id;
+    const documentId = params.id;
 
-    // Get document info
+    if (!documentId) {
+      return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
+    }
+
+    console.log(`🗑️ Deleting document: ${documentId}`);
+
+    // First, get the document to verify it exists
     const { data: document, error: fetchError } = await supabase
       .from('admin_documents')
-      .select('filename')
+      .select('*')
       .eq('id', documentId)
       .single();
 
     if (fetchError || !document) {
+      console.error('Document not found:', fetchError);
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    // Delete from Pinecone
-    console.log('🗑️  Deleting from Pinecone...');
-    await deleteDocumentFromPinecone(documentId);
+    console.log(`📄 Found document: ${document.filename}`);
 
-    // Delete from Supabase Storage
-    console.log('🗑️  Deleting from Storage...');
-    const { error: storageError } = await supabase.storage
-      .from('admin-pdfs')
-      .remove([document.filename]);
-
-    if (storageError) {
-      console.error('Storage deletion error:', storageError);
+    // Delete vectors from Pinecone
+    try {
+      console.log('🗑️ Deleting vectors from Pinecone...');
+      await deleteFromPinecone(documentId);
+      console.log('✅ Vectors deleted from Pinecone');
+    } catch (pineconeError: any) {
+      console.error('⚠️ Failed to delete from Pinecone:', pineconeError);
+      // Continue with database deletion even if Pinecone fails
+      // You might want to log this for manual cleanup
     }
 
-    // Delete from database
-    const { error: dbError } = await supabase
+    // Delete from Supabase
+    console.log('🗑️ Deleting from database...');
+    const { error: deleteError } = await supabase
       .from('admin_documents')
       .delete()
       .eq('id', documentId);
 
-    if (dbError) {
-      throw new Error(`Failed to delete document: ${dbError.message}`);
+    if (deleteError) {
+      console.error('❌ Database deletion error:', deleteError);
+      return NextResponse.json({ 
+        error: 'Failed to delete document from database',
+        details: deleteError.message 
+      }, { status: 500 });
     }
 
-    console.log('✅ Document deleted');
+    console.log('✅ Document deleted successfully');
 
     return NextResponse.json({
       success: true,
-      message: 'Document deleted successfully',
+      message: `Document "${document.filename}" deleted successfully`,
+      deletedId: documentId
     });
+
   } catch (error: any) {
-    console.error('Delete error:', error);
+    console.error('❌ Delete error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to delete document' },
+      { 
+        error: 'Failed to delete document',
+        details: error.message 
+      },
       { status: 500 }
     );
   }

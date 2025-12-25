@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  docling:
+    image: quay.io/docling-project/docling-serve:latest
+    container_name: docling-server
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    environment:
+      - DOCLING_LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

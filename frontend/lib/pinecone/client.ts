@@ -1,83 +1,82 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import { generateEmbedding } from '@/lib/gemini/client';
 
-// Initialize Pinecone client
 let pineconeClient: Pinecone | null = null;
 
-export function getPineconeClient(): Pinecone {
-  if (!pineconeClient) {
-    pineconeClient = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY!,
-    });
+/**
+ * Initialize and return Pinecone client
+ */
+export function initPinecone(): Pinecone {
+  if (pineconeClient) {
+    return pineconeClient;
   }
+
+  const apiKey = process.env.PINECONE_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('PINECONE_API_KEY is not set in environment variables');
+  }
+
+  pineconeClient = new Pinecone({
+    apiKey: apiKey,
+  });
+
   return pineconeClient;
 }
 
-// Store document chunks in Pinecone with real Gemini embeddings
-export async function storeDocumentChunks(
-  chunks: { text: string; metadata: any }[],
-  documentId: string,
-  filename: string
-) {
-  const pinecone = getPineconeClient();
-  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
-
-  console.log('🔵 PINECONE: Generating embeddings for', chunks.length, 'chunks...');
+/**
+ * Get Pinecone index
+ */
+export async function getPineconeClient() {
+  const client = initPinecone();
   
-  // Generate embeddings for all chunks
-  const embeddingsPromises = chunks.map(chunk => generateEmbedding(chunk.text));
-  const embeddings = await Promise.all(embeddingsPromises);
+  const indexName = process.env.PINECONE_INDEX_NAME;
   
-  console.log('🟢 PINECONE: All embeddings generated');
-
-  // Create vectors with real Gemini embeddings
-  const vectors = chunks.map((chunk, idx) => ({
-    id: `${documentId}-chunk-${idx}`,
-    values: embeddings[idx],
-    metadata: {
-      ...chunk.metadata,
-      documentId,
-      filename,
-      chunkIndex: idx,
-      text: chunk.text, 
-    },
-  }));
-
-  console.log('🔵 PINECONE: Upserting vectors to index...');
-
-  // Upsert vectors in batches of 100
-  const batchSize = 100;
-  for (let i = 0; i < vectors.length; i += batchSize) {
-    const batch = vectors.slice(i, i + batchSize);
-    try {
-      await index.upsert(batch);
-      console.log(`🟢 PINECONE: Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectors.length / batchSize)}`);
-    } catch (error) {
-      console.error(`Error upserting batch starting at index ${i}:`, error);
-      throw error;
-    }
+  if (!indexName) {
+    throw new Error('PINECONE_INDEX_NAME is not set in environment variables');
   }
 
-  console.log('🟢 PINECONE: All vectors stored successfully');
-  return vectors.length;
+  const index = client.index(indexName);
+  
+  return index;
 }
 
-// Delete document from Pinecone
-export async function deleteDocumentFromPinecone(documentId: string) {
-  const pinecone = getPineconeClient();
-  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
-
+/**
+ * Check if Pinecone index exists and is ready
+ */
+export async function checkPineconeHealth(): Promise<boolean> {
   try {
-      // 1. List vectors with this prefix
-      const list = await index.listPaginated({ prefix: `${documentId}-` });
-      
-      // 2. Delete them by ID
-      if (list.vectors && list.vectors.length > 0) {
-        const idsToDelete = list.vectors.map(v => v.id!);
-        await index.deleteMany(idsToDelete);
-      }
-  } catch (error) {
-      console.error("Error deleting document from Pinecone:", error);
-      throw error;
+    const client = initPinecone();
+    const indexName = process.env.PINECONE_INDEX_NAME;
+    
+    if (!indexName) {
+      throw new Error('PINECONE_INDEX_NAME is not set');
+    }
+
+    const indexList = await client.listIndexes();
+    const indexExists = indexList.indexes?.some(idx => idx.name === indexName);
+    
+    if (!indexExists) {
+      console.error(`Index "${indexName}" does not exist`);
+      return false;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error('Pinecone health check failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Get index statistics
+ */
+export async function getIndexStats() {
+  try {
+    const index = await getPineconeClient();
+    const stats = await index.describeIndexStats();
+    return stats;
+  } catch (error: any) {
+    console.error('Failed to get index stats:', error);
+    throw error;
   }
 }

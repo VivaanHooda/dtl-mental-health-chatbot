@@ -10,28 +10,51 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
-  Database
+  Database,
+  BarChart3,
+  Table2,
+  Image as ImageIcon,
+  Type,
+  ChevronDown,
+  ChevronRight,
+  Calendar,
+  HardDrive,
+  Layers
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-interface Document {
+interface DocumentStats {
   id: string;
-  original_filename: string;
+  filename: string;
   file_size: number;
   upload_date: string;
   num_chunks: number;
   status: string;
+  metadata?: {
+    totalChunks?: number;
+    textChunks?: number;
+    tableChunks?: number;
+    imageChunks?: number;
+    totalPages?: number;
+    processingTime?: number;
+    contentTypes?: {
+      text: number;
+      table: number;
+      image: number;
+    };
+  };
 }
 
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocumentStats[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkAdmin();
@@ -63,7 +86,8 @@ export default function AdminPage() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/api/admin/documents/list');
+      // Add timestamp to prevent caching
+      const response = await fetch(`/api/admin/documents/list?t=${Date.now()}`);
       const data = await response.json();
       if (data.success) {
         setDocuments(data.documents);
@@ -71,6 +95,16 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch documents:', error);
     }
+  };
+
+  const toggleExpanded = (docId: string) => {
+    const newExpanded = new Set(expandedDocs);
+    if (newExpanded.has(docId)) {
+      newExpanded.delete(docId);
+    } else {
+      newExpanded.add(docId);
+    }
+    setExpandedDocs(newExpanded);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,13 +135,17 @@ export default function AdminPage() {
         throw new Error(data.error || 'Upload failed');
       }
 
-      setUploadSuccess(`Successfully uploaded: ${file.name} (${data.document.numChunks} chunks stored in vector DB)`);
+      const statsMsg = data.document.stats 
+        ? ` (${data.document.stats.text} text, ${data.document.stats.tables} tables, ${data.document.stats.images} images)`
+        : '';
+      
+      setUploadSuccess(`Successfully uploaded: ${file.name} - ${data.document.numChunks} chunks${statsMsg}`);
       fetchDocuments(); // Refresh list
       
       // Clear file input
       e.target.value = '';
       
-      setTimeout(() => setUploadSuccess(''), 5000);
+      setTimeout(() => setUploadSuccess(''), 10000);
     } catch (error: any) {
       setUploadError(error.message || 'Failed to upload file');
     } finally {
@@ -141,6 +179,29 @@ export default function AdminPage() {
     router.push('/');
   };
 
+  const getTotalStats = () => {
+    return documents.reduce((acc, doc) => {
+      const meta = doc.metadata;
+      return {
+        totalDocs: acc.totalDocs + 1,
+        totalChunks: acc.totalChunks + (doc.num_chunks || 0),
+        totalText: acc.totalText + (meta?.textChunks || meta?.contentTypes?.text || 0),
+        totalTables: acc.totalTables + (meta?.tableChunks || meta?.contentTypes?.table || 0),
+        totalImages: acc.totalImages + (meta?.imageChunks || meta?.contentTypes?.image || 0),
+        totalSize: acc.totalSize + doc.file_size,
+        totalPages: acc.totalPages + (meta?.totalPages || 0),
+      };
+    }, {
+      totalDocs: 0,
+      totalChunks: 0,
+      totalText: 0,
+      totalTables: 0,
+      totalImages: 0,
+      totalSize: 0,
+      totalPages: 0,
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -148,6 +209,8 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  const stats = getTotalStats();
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -160,7 +223,7 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-              <p className="text-sm text-slate-400">Vector Database Management</p>
+              <p className="text-sm text-slate-400">RAG Vector Database Management</p>
             </div>
           </div>
           
@@ -181,21 +244,74 @@ export default function AdminPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        {/* Info Banner */}
-        <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-          <p className="text-sm text-blue-400">
-            <strong>Vector Database Storage:</strong> PDFs are processed and stored in Pinecone for future retrieval. 
-            Query functionality will be added later.
-          </p>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Overall Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-slate-400" />
+              <p className="text-slate-400 text-xs">Documents</p>
+            </div>
+            <p className="text-2xl font-bold text-white">{stats.totalDocs}</p>
+          </div>
+          
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="w-4 h-4 text-cyan-400" />
+              <p className="text-slate-400 text-xs">Total Vectors</p>
+            </div>
+            <p className="text-2xl font-bold text-cyan-400">{stats.totalChunks}</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Type className="w-4 h-4 text-blue-400" />
+              <p className="text-slate-400 text-xs">Text Chunks</p>
+            </div>
+            <p className="text-2xl font-bold text-blue-400">{stats.totalText}</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Table2 className="w-4 h-4 text-green-400" />
+              <p className="text-slate-400 text-xs">Table Chunks</p>
+            </div>
+            <p className="text-2xl font-bold text-green-400">{stats.totalTables}</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <ImageIcon className="w-4 h-4 text-purple-400" />
+              <p className="text-slate-400 text-xs">Image Chunks</p>
+            </div>
+            <p className="text-2xl font-bold text-purple-400">{stats.totalImages}</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="w-4 h-4 text-slate-400" />
+              <p className="text-slate-400 text-xs">Total Pages</p>
+            </div>
+            <p className="text-2xl font-bold text-white">{stats.totalPages}</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <HardDrive className="w-4 h-4 text-slate-400" />
+              <p className="text-slate-400 text-xs">Storage</p>
+            </div>
+            <p className="text-2xl font-bold text-white">
+              {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Upload Section */}
-          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 lg:col-span-1">
             <div className="flex items-center gap-3 mb-4">
               <Upload className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-lg font-semibold text-white">Upload PDF Document</h2>
+              <h2 className="text-lg font-semibold text-white">Upload PDF</h2>
             </div>
 
             {uploadError && (
@@ -228,106 +344,164 @@ export default function AdminPage() {
                 {uploading ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
-                    <p className="text-slate-300">Processing PDF...</p>
-                    <p className="text-xs text-slate-500">Extracting text, chunking, and storing in vector DB</p>
+                    <p className="text-slate-300">Processing...</p>
+                    <p className="text-xs text-slate-500">Extracting content with Docling</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     <FileText className="w-12 h-12 text-slate-400" />
-                    <p className="text-slate-300 font-medium">Click to upload PDF</p>
-                    <p className="text-xs text-slate-500">Only PDF files are supported</p>
+                    <p className="text-slate-300 font-medium">Click to upload</p>
+                    <p className="text-xs text-slate-500">PDF files only</p>
                   </div>
                 )}
               </label>
             </div>
 
             <div className="mt-4 p-4 bg-slate-900/50 rounded-lg">
-              <h3 className="text-sm font-medium text-slate-300 mb-2">Processing Pipeline:</h3>
+              <h3 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Processing Pipeline
+              </h3>
               <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
-                <li>Upload PDF document</li>
-                <li>Extract text content</li>
-                <li>Split into paragraph-based chunks</li>
-                <li>Generate embeddings (OpenAI ada-002)</li>
-                <li>Store vectors in Pinecone database</li>
-                <li>Save metadata in Supabase</li>
+                <li>Extract tables, images & text (Docling)</li>
+                <li>Smart chunking with context</li>
+                <li>Generate embeddings (Gemini)</li>
+                <li>Store in Pinecone vector DB</li>
+                <li>Save metadata to Supabase</li>
               </ol>
             </div>
           </div>
 
-          {/* Documents List */}
-          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          {/* Documents List with Detailed Stats */}
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <Database className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-lg font-semibold text-white">Vector Database</h2>
+              <h2 className="text-lg font-semibold text-white">Document Statistics</h2>
               <span className="ml-auto text-sm text-slate-400">
                 {documents.length} {documents.length === 1 ? 'document' : 'documents'}
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
               {documents.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No documents stored yet</p>
-                  <p className="text-xs mt-1">Upload PDFs to populate the vector database</p>
+                <div className="text-center py-12 text-slate-500">
+                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                  <p className="text-sm">No documents uploaded yet</p>
+                  <p className="text-xs mt-1">Upload PDFs to populate the RAG database</p>
                 </div>
               ) : (
-                documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="bg-slate-900/50 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-white truncate">
-                          {doc.original_filename}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                          <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
-                          <span>•</span>
-                          <span className="text-cyan-400 font-medium">{doc.num_chunks} vectors</span>
-                          <span>•</span>
-                          <span>{new Date(doc.upload_date).toLocaleDateString()}</span>
-                        </div>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-400 text-xs rounded">
-                            <CheckCircle className="w-3 h-3" />
-                            Stored in Pinecone
-                          </span>
+                documents.map((doc) => {
+                  const isExpanded = expandedDocs.has(doc.id);
+                  const meta = doc.metadata;
+                  
+                  return (
+                    <div
+                      key={doc.id}
+                      className="bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-all"
+                    >
+                      {/* Header - Always Visible */}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            onClick={() => toggleExpanded(doc.id)}
+                            className="flex-1 text-left flex items-start gap-2 min-w-0"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-medium text-white truncate">
+                                {doc.filename}
+                              </h3>
+                              <div className="flex items-center gap-3 mt-2 text-xs text-slate-400 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <HardDrive className="w-3 h-3" />
+                                  {(doc.file_size / 1024).toFixed(1)} KB
+                                </span>
+                                <span>•</span>
+                                <span className="flex items-center gap-1 text-cyan-400 font-medium">
+                                  <Database className="w-3 h-3" />
+                                  {doc.num_chunks} vectors
+                                </span>
+                                {meta?.totalPages && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1">
+                                      <Layers className="w-3 h-3" />
+                                      {meta.totalPages} pages
+                                    </span>
+                                  </>
+                                )}
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(doc.upload_date).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id, doc.filename)}
+                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors shrink-0"
+                            title="Delete document"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteDocument(doc.id, doc.original_filename)}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                        title="Delete document"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+
+                      {/* Expanded Stats */}
+                      {isExpanded && meta && (
+                        <div className="px-4 pb-4 border-t border-slate-700/50">
+                          <div className="pt-4 grid grid-cols-3 gap-3">
+                            <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-500/20">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Type className="w-3 h-3 text-blue-400" />
+                                <p className="text-xs text-blue-400 font-medium">Text</p>
+                              </div>
+                              <p className="text-lg font-bold text-blue-400">
+                                {meta.textChunks || meta.contentTypes?.text || 0}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1">chunks</p>
+                            </div>
+
+                            <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/20">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Table2 className="w-3 h-3 text-green-400" />
+                                <p className="text-xs text-green-400 font-medium">Tables</p>
+                              </div>
+                              <p className="text-lg font-bold text-green-400">
+                                {meta.tableChunks || meta.contentTypes?.table || 0}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1">chunks</p>
+                            </div>
+
+                            <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/20">
+                              <div className="flex items-center gap-2 mb-1">
+                                <ImageIcon className="w-3 h-3 text-purple-400" />
+                                <p className="text-xs text-purple-400 font-medium">Images</p>
+                              </div>
+                              <p className="text-lg font-bold text-purple-400">
+                                {meta.imageChunks || meta.contentTypes?.image || 0}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1">chunks</p>
+                            </div>
+                          </div>
+
+                          {meta.processingTime && (
+                            <div className="mt-3 p-2 bg-slate-800/50 rounded text-xs text-slate-400">
+                              ⚡ Processing time: {meta.processingTime.toFixed(2)}s
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Stats Section */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <p className="text-slate-400 text-sm mb-1">Total Documents</p>
-            <p className="text-2xl font-bold text-white">{documents.length}</p>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <p className="text-slate-400 text-sm mb-1">Total Vectors</p>
-            <p className="text-2xl font-bold text-cyan-400">
-              {documents.reduce((sum, doc) => sum + doc.num_chunks, 0)}
-            </p>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <p className="text-slate-400 text-sm mb-1">Total Storage</p>
-            <p className="text-2xl font-bold text-white">
-              {(documents.reduce((sum, doc) => sum + doc.file_size, 0) / 1024 / 1024).toFixed(2)} MB
-            </p>
           </div>
         </div>
       </main>
