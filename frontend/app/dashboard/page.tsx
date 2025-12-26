@@ -5,6 +5,7 @@ import { Send, LogOut, Sparkles, User as UserIcon, Menu, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import FitbitWidget from '@/components/FitbitWidget';
+import EmergencyContactWidget from '@/components/EmergencyContactWidget';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -21,7 +22,7 @@ function DashboardContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chatDisabled, setChatDisabled] = useState(false); // Track if chat is disabled
+  const [chatDisabled, setChatDisabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,7 +98,6 @@ function DashboardContent() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Show specific error from API
         const errorMsg = data.error || 'Failed to get response';
         console.error('API Error:', errorMsg);
         throw new Error(errorMsg);
@@ -125,7 +125,6 @@ function DashboardContent() {
     } catch (error: any) {
       console.error('Error sending message:', error);
       
-      // Provide more specific error messages based on the error
       let errorContent = "I apologize, but I'm having trouble responding right now.";
       
       if (error.message?.includes('API key')) {
@@ -133,7 +132,7 @@ function DashboardContent() {
       } else if (error.message?.includes('rate limit')) {
         errorContent = "⚠️ I'm receiving too many requests right now. Please wait a moment and try again.";
       } else if (error.message?.includes('configured')) {
-        errorContent = error.message; // Show the specific configuration error
+        errorContent = error.message;
       } else {
         errorContent += " Please try again in a moment.";
       }
@@ -165,10 +164,11 @@ function DashboardContent() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900">
-      {/* Sidebar for Fitbit Widget - Desktop */}
+      {/* Sidebar for Widgets - Desktop */}
       <aside className="hidden lg:block w-80 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
-        <div className="p-4">
+        <div className="p-4 space-y-4">
           <FitbitWidget />
+          <EmergencyContactWidget />
         </div>
       </aside>
 
@@ -177,7 +177,7 @@ function DashboardContent() {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-900 overflow-y-auto shadow-xl">
-            <div className="p-4">
+            <div className="p-4 space-y-4">
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="mb-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
@@ -185,6 +185,7 @@ function DashboardContent() {
                 <X className="w-5 h-5" />
               </button>
               <FitbitWidget />
+              <EmergencyContactWidget />
             </div>
           </div>
         </div>
@@ -195,7 +196,7 @@ function DashboardContent() {
         {/* Header */}
         <header className="border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-linear-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-lg font-medium text-slate-800 dark:text-slate-100">Mental Health Companion</h1>
@@ -221,7 +222,7 @@ function DashboardContent() {
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full max-w-3xl mx-auto">
-              <div className="w-20 h-20 bg-linear-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-2xl flex items-center justify-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-2xl flex items-center justify-center mb-6">
                 <Sparkles className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-3xl font-medium text-slate-800 dark:text-slate-100 mb-3">
@@ -249,7 +250,7 @@ function DashboardContent() {
               {messages.map((message) => (
                 <div key={message.id} className="flex gap-4">
                   {message.role === 'assistant' && (
-                    <div className="w-8 h-8 bg-linear-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                   )}
@@ -269,7 +270,7 @@ function DashboardContent() {
               ))}
               {isLoading && (
                 <div className="flex gap-4">
-                  <div className="w-8 h-8 bg-linear-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">

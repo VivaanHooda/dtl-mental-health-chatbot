@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { queryRAG } from '@/lib/rag/query';
 import { generateWithContext } from '@/lib/gemini/client';
-import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText, getCrisisPromptAddition } from '@/lib/safety/crisis-detection';
+import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText } from '@/lib/safety/crisis-detection';
 import { searchMemories, addMemory, MEMORY_CATEGORIES } from '@/lib/mem0/client';
 import { analyzeHealthDataWithAI, formatAIInsightsForMemory } from '@/lib/fitbit/ai-analyzer';
+import { sendEmergencyAlert } from '@/lib/email/crisis-alert';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
@@ -12,39 +13,61 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     
-    // Check if user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
       console.error('🔴 CHAT: Auth failed:', authError?.message);
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('🟢 CHAT: User authenticated:', user.id.substring(0, 8) + '...');
 
-    // Parse request body
     const body = await request.json();
     const { message, conversationHistory } = body;
 
     if (!message || typeof message !== 'string') {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
     console.log('🔵 CHAT: User message:', message.substring(0, 100));
 
-    // Step 0: Check for SEVERE crisis indicators - disable chat if detected
+    // Check for SEVERE crisis
     const isSevereCrisis = detectSevereCrisis(message);
+    
     if (isSevereCrisis) {
-      console.log('🚨🚨 CHAT: SEVERE CRISIS DETECTED - CHAT DISABLED - EMERGENCY RESPONSE ONLY');
+      console.log('🚨🚨 CHAT: SEVERE CRISIS DETECTED - EMERGENCY PROTOCOL ACTIVATED');
       
-      // Return emergency resources immediately without AI processing
-      const emergencyResponse = getSevereEmergencyResourcesText();
+      // Get user profile with emergency contact
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('username, email, emergency_contact_email')
+        .eq('user_id', user.id)
+        .single();
+      
+      let emergencyResponse = getSevereEmergencyResourcesText();
+      let emailSent = false;
+      
+      // Send emergency email if contact is linked
+      if (profile?.emergency_contact_email) {
+        console.log('📧 CHAT: Emergency contact found, sending alert...');
+        
+        emailSent = await sendEmergencyAlert({
+          emergencyContactEmail: profile.emergency_contact_email,
+          userName: profile.username || 'User',
+          userEmail: profile.email || user.email || '',
+          timestamp: new Date(),
+        });
+        
+        if (emailSent) {
+          console.log('✅ CHAT: Emergency alert email sent successfully');
+          emergencyResponse += '\n\n---\n\n**✅ Emergency Alert Sent**\n\nAn emergency notification has been sent to your emergency contact. Help is on the way.';
+        } else {
+          console.warn('⚠️ CHAT: Failed to send emergency email');
+        }
+      } else {
+        console.log('⚪ CHAT: No emergency contact linked');
+        emergencyResponse += '\n\n---\n\n**ℹ️ No Emergency Contact Linked**\n\nConsider adding an emergency contact in your dashboard settings for faster support in crisis situations.';
+      }
       
       // Store the emergency interaction
       try {
@@ -74,47 +97,34 @@ export async function POST(request: NextRequest) {
         fitbitDataUsed: false,
         crisisDetected: true,
         severeCrisis: true,
-        chatDisabled: true, // Signal to frontend to disable chat
+        chatDisabled: true,
+        emailSent,
       });
     }
 
-    // Check for regular crisis indicators
+    // Check for regular crisis
     const isCrisis = detectCrisis(message);
     if (isCrisis) {
       console.log('🚨 CHAT: CRISIS DETECTED - Priority response mode');
     }
 
-    // Step 1: Retrieve relevant memories from Mem0 (gracefully handle failures)
+    // Retrieve memories
     let userMemories: any[] = [];
     try {
       console.log('🔵 CHAT: Retrieving user memories from Mem0...');
-      
-      const memoryResult = await searchMemories(user.id, message, {
-        limit: 5,
-        threshold: 0.3,
-      });
-      
+      const memoryResult = await searchMemories(user.id, message, { limit: 5, threshold: 0.3 });
       if (memoryResult.success && memoryResult.memories) {
         userMemories = memoryResult.memories;
         console.log('🟢 CHAT: Retrieved', userMemories.length, 'relevant memories');
-        
-        // Log memory categories being used
-        if (userMemories.length > 0) {
-          const categories = [...new Set(userMemories.map(m => m.category).filter(Boolean))];
-          console.log('🧠 CHAT: Memory categories:', categories.join(', '));
-        }
       }
     } catch (memoryError: any) {
-      console.warn('⚠️ CHAT: Memory retrieval failed, continuing without memories:', memoryError.message);
-      // Continue without memories - not critical for chat functionality
+      console.warn('⚠️ CHAT: Memory retrieval failed:', memoryError.message);
     }
 
-    // Step 2: Fetch Fitbit health data for context
+    // Fetch Fitbit data
     let fitbitData: any = null;
     try {
       console.log('🔵 CHAT: Fetching Fitbit health data...');
-      
-      // Check if user has connected Fitbit
       const { data: fitbitTokens } = await supabase
         .from('fitbit_tokens')
         .select('fitbit_user_id')
@@ -122,7 +132,6 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (fitbitTokens) {
-        // Fetch recent Fitbit data (last 7 days)
         const { data: recentData } = await supabase
           .from('fitbit_data')
           .select('*')
@@ -141,29 +150,21 @@ export async function POST(request: NextRequest) {
           };
           console.log('🟢 CHAT: Retrieved', recentData.length, 'days of Fitbit data');
         }
-      } else {
-        console.log('⚪ CHAT: No Fitbit connected for this user');
       }
     } catch (fitbitError: any) {
       console.warn('⚠️ CHAT: Failed to fetch Fitbit data:', fitbitError.message);
-      // Continue without Fitbit data - not critical
     }
 
-    // Step 2.5: Generate AI-powered health insights if Fitbit data available
+    // AI health insights
     let healthInsightsText: string = '';
     let aiHealthInsights: any = null;
     if (fitbitData?.recentData && fitbitData.recentData.length > 0) {
       try {
-        // Get user context from recent memories for better analysis
         const memoryContext = userMemories.length > 0 
           ? userMemories.map(m => m.memory).join('. ')
           : undefined;
         
-        // Use AI model to analyze health data
-        aiHealthInsights = await analyzeHealthDataWithAI(
-          fitbitData.recentData,
-          memoryContext
-        );
+        aiHealthInsights = await analyzeHealthDataWithAI(fitbitData.recentData, memoryContext);
         
         if (aiHealthInsights) {
           const dateRange = `${fitbitData.recentData[fitbitData.recentData.length - 1]?.date} to ${fitbitData.recentData[0]?.date}`;
@@ -172,35 +173,24 @@ export async function POST(request: NextRequest) {
         }
       } catch (insightError: any) {
         console.warn('⚠️ CHAT: Failed to generate AI health insights:', insightError.message);
-        // Fallback: Continue without health insights
       }
     }
 
-    // Step 3: Query RAG system to get relevant context (optional - gracefully handle failures)
+    // Query RAG
     let relevantChunks: any[] = [];
-    const ragEnabled = process.env.ENABLE_RAG !== 'false'; // Default to true unless explicitly disabled
+    const ragEnabled = process.env.ENABLE_RAG !== 'false';
     
     if (ragEnabled) {
       try {
         console.log('🔵 CHAT: Querying RAG system...');
         relevantChunks = await queryRAG(message, 5);
         console.log('🟢 CHAT: Retrieved', relevantChunks.length, 'context chunks');
-        
-        // Log the sources being used
-        if (relevantChunks.length > 0) {
-          console.log('📚 CHAT: Using context from:', 
-            [...new Set(relevantChunks.map(c => c.metadata.filename))].join(', ')
-          );
-        }
       } catch (ragError: any) {
-        console.warn('⚠️ CHAT: RAG query failed, continuing without context:', ragError.message);
-        // Continue without RAG context - this is not critical for basic chat
+        console.warn('⚠️ CHAT: RAG query failed:', ragError.message);
       }
-    } else {
-      console.log('⚪ CHAT: RAG disabled via environment variable, skipping context retrieval');
     }
 
-    // Step 4: Generate response using Gemini with RAG context + Fitbit data + Mem0 memories
+    // Generate response
     console.log('🔵 CHAT: Generating response with Gemini...');
     const response = await generateWithContext(
       message,
@@ -208,11 +198,11 @@ export async function POST(request: NextRequest) {
       conversationHistory || [],
       fitbitData,
       isCrisis,
-      userMemories, // Pass memories to Gemini
-      aiHealthInsights // Pass AI-generated health insights
+      userMemories,
+      aiHealthInsights
     );
 
-    // Step 4.5: If crisis detected, append emergency resources
+    // Add emergency resources if crisis
     let finalResponse = response;
     if (isCrisis) {
       finalResponse = response + '\n\n' + getEmergencyResourcesText();
@@ -221,7 +211,7 @@ export async function POST(request: NextRequest) {
 
     console.log('🟢 CHAT: Response generated successfully');
     
-    // Step 5: Store AI health insights as memories (async, non-blocking)
+    // Store health insights in memory
     if (healthInsightsText && aiHealthInsights) {
       addMemory(user.id, [
         { role: 'user', content: 'Health data analysis requested' },
@@ -235,8 +225,8 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Step 6: Extract and store conversation memories (async, non-blocking)
-    if (!isCrisis) { // Don't store crisis conversations as regular memories
+    // Store conversation memory
+    if (!isCrisis) {
       addMemory(user.id, [
         { role: 'user', content: message },
         { role: 'assistant', content: finalResponse }
@@ -247,7 +237,7 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Step 7: Store the conversation in database (optional, for history)
+    // Store in database
     try {
       await supabase.from('chat_messages').insert([
         {
@@ -266,10 +256,8 @@ export async function POST(request: NextRequest) {
       console.log('🟢 CHAT: Conversation saved to database');
     } catch (dbError) {
       console.warn('⚠️ CHAT: Failed to save conversation:', dbError);
-      // Don't fail the request if DB save fails
     }
 
-    // Return response with metadata about sources and health data used
     return NextResponse.json({
       success: true,
       response: finalResponse,
@@ -290,10 +278,8 @@ export async function POST(request: NextRequest) {
       name: error.name,
     });
     
-    // Return user-friendly error message
     let errorMessage = error.message || 'Failed to generate response';
     
-    // Check for common issues
     if (error.message?.includes('GEMINI_API_KEY')) {
       errorMessage = 'Gemini API key is not configured. Please contact the administrator.';
     } else if (error.message?.includes('PINECONE')) {
