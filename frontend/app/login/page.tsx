@@ -72,40 +72,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-sky-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-cyan-900 flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen aurora-bg bg-background flex items-center justify-center px-6 py-12">
       <div className="max-w-md w-full">
         {/* Back Button */}
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 mb-8 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
+        <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors group">
+          <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
           Back to Home
         </Link>
 
         {/* Login Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8">
+        <div className="glass rounded-3xl shadow-2xl p-8 hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2 bg-linear-to-r from-cyan-600 to-sky-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold mb-2 bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent">
               Welcome Back
             </h1>
-            <p className="text-slate-600 dark:text-slate-300">
+            <p className="text-muted-foreground">
               Login to continue your mental health journey
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+            <div className="mb-6 p-4 glass border-error/30 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="w-5 h-5 text-error shrink-0 mt-0.5" />
+              <p className="text-error text-sm">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                 Email
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <input
                   type="email"
                   id="email"
@@ -113,7 +113,7 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="your.email@example.com"
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  className="w-full pl-10 pr-4 py-3 glass rounded-2xl focus:ring-2 focus:ring-primary focus:border-primary/50 text-foreground placeholder-muted-foreground transition-all duration-200"
                   required
                 />
               </div>
@@ -121,11 +121,11 @@ export default function LoginPage() {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                 Password
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <input
                   type="password"
                   id="password"
@@ -133,7 +133,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  className="w-full pl-10 pr-4 py-3 glass rounded-2xl focus:ring-2 focus:ring-primary focus:border-primary/50 text-foreground placeholder-muted-foreground transition-all duration-200"
                   required
                 />
               </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
 
             {/* Forgot Password Link */}
             <div className="text-right">
-              <Link href="/forgot-password" className="text-sm text-cyan-500 hover:text-cyan-600 dark:hover:text-cyan-400">
+              <Link href="/forgot-password" className="text-sm text-primary hover:text-primary-dark transition-colors">
                 Forgot password?
               </Link>
             </div>
@@ -150,7 +150,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-linear-to-r from-cyan-500 to-sky-500 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+              className="w-full bg-linear-to-r from-primary to-secondary text-white py-3 rounded-2xl font-semibold hover:shadow-[0_8px_30px_rgb(99,102,241,0.3)] transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -164,9 +164,9 @@ export default function LoginPage() {
           </form>
 
           {/* Sign Up Link */}
-          <p className="mt-6 text-center text-slate-600 dark:text-slate-300">
+          <p className="mt-6 text-center text-muted-foreground">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-cyan-500 hover:text-cyan-600 dark:hover:text-cyan-400 font-semibold">
+            <Link href="/signup" className="text-primary hover:text-primary-dark font-semibold transition-colors">
               Sign Up
             </Link>
           </p>

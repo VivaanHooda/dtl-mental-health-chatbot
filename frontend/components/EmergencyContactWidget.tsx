@@ -131,75 +131,75 @@ export default function EmergencyContactWidget() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
+      <div className="glass rounded-3xl p-6 hover:shadow-lg transition-all duration-300">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
+    <div className="glass rounded-3xl p-6 hover:shadow-[0_8px_30px_rgb(239,68,68,0.15)] transition-all duration-300">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+        <div className="w-10 h-10 bg-linear-to-br from-error to-warning rounded-2xl flex items-center justify-center shadow-lg">
           <Shield className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+          <h3 className="font-semibold text-foreground">
             Emergency Contact
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Crisis alert system
           </p>
         </div>
         <button
           onClick={fetchEmergencyContact}
-          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          className="p-2 hover:bg-muted rounded-2xl transition-all duration-200"
           title="Refresh"
         >
-          <RefreshCw className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+          <RefreshCw className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="mb-4 p-3 glass border-error/30 rounded-2xl flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+          <p className="text-sm text-error">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-2">
-          <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+        <div className="mb-4 p-3 glass border-success/30 rounded-2xl flex items-start gap-2">
+          <Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
+          <p className="text-sm text-success">{success}</p>
         </div>
       )}
 
       {!isLinked && !editing ? (
         <>
-          <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Link a trusted person who will be notified if our system detects you're in crisis.
           </p>
 
           <ul className="space-y-2 mb-6">
-            <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <Check className="w-4 h-4 text-green-500" />
+            <li className="flex items-center gap-2 text-sm text-foreground">
+              <Check className="w-4 h-4 text-success" />
               Automatic crisis detection
             </li>
-            <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <Check className="w-4 h-4 text-green-500" />
+            <li className="flex items-center gap-2 text-sm text-foreground">
+              <Check className="w-4 h-4 text-success" />
               Instant email alerts
             </li>
-            <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <Check className="w-4 h-4 text-green-500" />
+            <li className="flex items-center gap-2 text-sm text-foreground">
+              <Check className="w-4 h-4 text-success" />
               Emergency resources included
             </li>
           </ul>
 
           <button
             onClick={() => setEditing(true)}
-            className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-3 rounded-lg font-medium hover:from-red-600 hover:to-orange-600 transition-all"
+            className="w-full bg-linear-to-r from-error to-warning text-white py-3 rounded-2xl font-medium hover:shadow-[0_8px_30px_rgb(239,68,68,0.3)] transition-all duration-300 transform hover:scale-[1.02]"
           >
             Link Emergency Contact
           </button>
@@ -207,24 +207,24 @@ export default function EmergencyContactWidget() {
       ) : editing ? (
         <>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Emergency Contact Email
             </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <div className="relative group">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-error transition-colors" />
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="contact@example.com"
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                className="w-full pl-10 pr-4 py-3 glass rounded-2xl focus:ring-2 focus:ring-error focus:border-error/50 text-foreground placeholder-muted-foreground transition-all duration-200"
                 disabled={saving}
               />
             </div>
           </div>
 
-          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <p className="text-xs text-amber-800 dark:text-amber-200">
+          <div className="mb-4 p-3 glass border-warning/30 rounded-2xl">
+            <p className="text-xs text-foreground">
               <strong>Important:</strong> This person will receive urgent alerts if you express thoughts of self-harm. Choose someone you trust.
             </p>
           </div>
@@ -233,7 +233,7 @@ export default function EmergencyContactWidget() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 text-white py-2 rounded-lg font-medium hover:from-red-600 hover:to-orange-600 transition-all disabled:opacity-50"
+              className="flex-1 bg-linear-to-r from-error to-warning text-white py-2 rounded-2xl font-medium hover:shadow-[0_8px_30px_rgb(239,68,68,0.3)] transition-all duration-300 disabled:opacity-50"
             >
               {saving ? (
                 <span className="flex items-center justify-center gap-2">
@@ -251,7 +251,7 @@ export default function EmergencyContactWidget() {
                 setError('');
               }}
               disabled={saving}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
+              className="px-4 py-2 glass rounded-2xl hover:bg-muted transition-all duration-200 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -259,14 +259,14 @@ export default function EmergencyContactWidget() {
         </>
       ) : (
         <>
-          <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="mb-4 p-4 glass border-success/30 rounded-2xl">
             <div className="flex items-center gap-2 mb-2">
-              <Check className="w-5 h-5 text-green-500" />
-              <p className="font-medium text-green-800 dark:text-green-200">
+              <Check className="w-5 h-5 text-success" />
+              <p className="font-medium text-foreground">
                 Emergency Contact Active
               </p>
             </div>
-            <p className="text-sm text-green-700 dark:text-green-300 break-all">
+            <p className="text-sm text-success break-all">
               <Mail className="w-4 h-4 inline mr-1" />
               {emergencyContact}
             </p>
@@ -275,14 +275,14 @@ export default function EmergencyContactWidget() {
           <div className="flex gap-2">
             <button
               onClick={() => setEditing(true)}
-              className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-all text-sm"
+              className="flex-1 px-4 py-2 glass text-foreground rounded-2xl hover:bg-muted transition-all duration-200 text-sm"
             >
               Update
             </button>
             <button
               onClick={handleRemove}
               disabled={saving}
-              className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all text-sm disabled:opacity-50"
+              className="px-4 py-2 text-error hover:bg-error/10 rounded-2xl transition-all duration-200 text-sm disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
             </button>

@@ -128,9 +128,9 @@ export default function FitbitWidget() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
+      <div className="glass rounded-3xl p-6 hover:shadow-lg transition-all duration-300">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       </div>
     );
@@ -138,49 +138,49 @@ export default function FitbitWidget() {
 
   if (!status?.connected) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
+      <div className="glass rounded-3xl p-6 hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-linear-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-linear-to-br from-primary to-info rounded-2xl flex items-center justify-center shadow-lg">
             <Activity className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+            <h3 className="font-semibold text-foreground">
               Connect Fitbit
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Track your health metrics
             </p>
           </div>
         </div>
 
-        <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Connect your Fitbit to help us provide better mental health insights based on your:
         </p>
 
         <ul className="space-y-2 mb-6">
-          <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Check className="w-4 h-4 text-green-500" />
+          <li className="flex items-center gap-2 text-sm text-foreground">
+            <Check className="w-4 h-4 text-success" />
             Sleep patterns & quality
           </li>
-          <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Check className="w-4 h-4 text-green-500" />
+          <li className="flex items-center gap-2 text-sm text-foreground">
+            <Check className="w-4 h-4 text-success" />
             Heart rate & stress levels
           </li>
-          <li className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Check className="w-4 h-4 text-green-500" />
+          <li className="flex items-center gap-2 text-sm text-foreground">
+            <Check className="w-4 h-4 text-success" />
             Activity & exercise data
           </li>
         </ul>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <div className="mb-4 p-3 glass border-error/30 rounded-2xl">
+            <p className="text-sm text-error">{error}</p>
           </div>
         )}
 
         <button
           onClick={handleConnect}
-          className="w-full bg-linear-to-r from-cyan-500 to-blue-500 text-white py-3 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-600 transition-all"
+          className="w-full bg-linear-to-r from-primary to-info text-white py-3 rounded-2xl font-medium hover:shadow-[0_8px_30px_rgb(99,102,241,0.3)] transition-all duration-300 transform hover:scale-[1.02]"
         >
           Connect Fitbit
         </button>
@@ -189,18 +189,18 @@ export default function FitbitWidget() {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm">
+    <div className="glass rounded-3xl p-6 hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)] transition-all duration-300">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-linear-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-linear-to-br from-primary to-info rounded-2xl flex items-center justify-center shadow-lg">
             <Activity className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+            <h3 className="font-semibold text-foreground">
               Fitbit Connected
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Last synced: {syncing ? 'Syncing...' : 'Just now'}
             </p>
           </div>
@@ -210,17 +210,17 @@ export default function FitbitWidget() {
           <button
             onClick={fetchData}
             disabled={syncing}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-2xl transition-all duration-200"
             title="Refresh data"
           >
-            <RefreshCw className={`w-4 h-4 text-slate-600 dark:text-slate-400 ${syncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${syncing ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleDisconnect}
-            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            className="p-2 hover:bg-error/10 rounded-2xl transition-all duration-200"
             title="Disconnect"
           >
-            <X className="w-4 h-4 text-red-500" />
+            <X className="w-4 h-4 text-error" />
           </button>
         </div>
       </div>
@@ -230,33 +230,33 @@ export default function FitbitWidget() {
         <div className="space-y-4">
           {/* Activity */}
           {data.activity && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div className="p-4 glass rounded-2xl hover:shadow-lg transition-all duration-200">
               <div className="flex items-center gap-2 mb-3">
-                <Activity className="w-4 h-4 text-cyan-500" />
-                <h4 className="font-medium text-slate-800 dark:text-slate-100">Activity</h4>
+                <Activity className="w-4 h-4 text-primary" />
+                <h4 className="font-medium text-foreground">Activity</h4>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Steps</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Steps</p>
+                  <p className="font-semibold text-foreground">
                     {data.activity.steps.toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Calories</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Calories</p>
+                  <p className="font-semibold text-foreground">
                     {data.activity.calories.toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Distance</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Distance</p>
+                  <p className="font-semibold text-foreground">
                     {data.activity.distance.toFixed(2)} km
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Active Min</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Active Min</p>
+                  <p className="font-semibold text-foreground">
                     {data.activity.activeMinutes}
                   </p>
                 </div>
@@ -266,14 +266,14 @@ export default function FitbitWidget() {
 
           {/* Heart Rate */}
           {data.heartRate && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div className="p-4 glass rounded-2xl hover:shadow-lg transition-all duration-200">
               <div className="flex items-center gap-2 mb-3">
-                <Heart className="w-4 h-4 text-red-500" />
-                <h4 className="font-medium text-slate-800 dark:text-slate-100">Heart Rate</h4>
+                <Heart className="w-4 h-4 text-error" />
+                <h4 className="font-medium text-foreground">Heart Rate</h4>
               </div>
               <div className="text-sm">
-                <p className="text-slate-500 dark:text-slate-400">Resting Heart Rate</p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                <p className="text-muted-foreground">Resting Heart Rate</p>
+                <p className="text-2xl font-bold text-foreground">
                   {data.heartRate.restingHeartRate} <span className="text-sm font-normal">bpm</span>
                 </p>
               </div>
@@ -282,21 +282,21 @@ export default function FitbitWidget() {
 
           {/* Sleep */}
           {data.sleep && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div className="p-4 glass rounded-2xl hover:shadow-lg transition-all duration-200">
               <div className="flex items-center gap-2 mb-3">
-                <Moon className="w-4 h-4 text-purple-500" />
-                <h4 className="font-medium text-slate-800 dark:text-slate-100">Sleep</h4>
+                <Moon className="w-4 h-4 text-secondary" />
+                <h4 className="font-medium text-foreground">Sleep</h4>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Duration</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Duration</p>
+                  <p className="font-semibold text-foreground">
                     {Math.floor(data.sleep.minutesAsleep / 60)}h {data.sleep.minutesAsleep % 60}m
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400">Efficiency</p>
-                  <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-muted-foreground">Efficiency</p>
+                  <p className="font-semibold text-foreground">
                     {data.sleep.efficiency}%
                   </p>
                 </div>
@@ -307,8 +307,8 @@ export default function FitbitWidget() {
       )}
 
       {error && (
-        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="mt-4 p-3 glass border-error/30 rounded-2xl">
+          <p className="text-sm text-error">{error}</p>
         </div>
       )}
     </div>

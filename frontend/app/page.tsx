@@ -1,81 +1,188 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Heart, Activity, Brain, Shield, Users, Sparkles, Check, Lock, UserPlus, LogIn } from 'lucide-react';
+import React from 'react';
+import { Heart, Activity, Brain, Shield, Users, Sparkles, ArrowRight, Lock, UserPlus, LogIn, Zap, TrendingUp, Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function LandingPage() {
-
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-sky-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-cyan-900">
-      {/* Hero Section */}
-      <header className="container mx-auto px-6 py-20">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-cyan-100 dark:bg-cyan-900/30 px-4 py-2 rounded-full mb-6">
-            <Sparkles className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-            <span className="text-sm font-medium text-cyan-700 dark:text-cyan-300">AI-Powered Mental Health Support</span>
+    <div className="min-h-screen bg-background aurora-bg">
+      {/* Floating Theme Toggle */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+      
+      {/* Hero Section - Modern Spotlight Design */}
+      <header className="relative container mx-auto px-6 py-24 md:py-32 max-w-7xl">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          {/* Left: Content */}
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">AI-Powered Mental Health Support</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]">
+              Your Mental Health{' '}
+              <span className="bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+                Compass
+              </span>
+            </h1>
+            
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
+              A personalized AI companion combining wearable health data, evidence-based guidance, 
+              and empathetic support for the RVCE community.
+            </p>
+            
+            <div className="flex flex-wrap gap-4">
+              <Link 
+                href="/signup" 
+                className={cn(
+                  "group relative px-8 py-4 rounded-xl font-semibold",
+                  "bg-linear-to-r from-primary to-secondary text-white",
+                  "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40",
+                  "transition-all duration-300 hover:-translate-y-0.5",
+                  "inline-flex items-center gap-2"
+                )}
+              >
+                <UserPlus className="w-5 h-5" />
+                Start Your Journey
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link 
+                href="/login" 
+                className={cn(
+                  "px-8 py-4 rounded-xl font-semibold",
+                  "glass border-2 border-border hover:border-primary/50",
+                  "transition-all duration-300 hover:-translate-y-0.5",
+                  "inline-flex items-center gap-2"
+                )}
+              >
+                <LogIn className="w-5 h-5" />
+                Login
+              </Link>
+            </div>
           </div>
-          
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-linear-to-r from-cyan-600 to-sky-600 bg-clip-text text-transparent">
-            DTL Mental Health Chatbot
-          </h1>
-          
-          <p className="text-xl text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
-            A personalized, ethical AI companion that combines wearable health metrics, 
-            contextual knowledge, and advanced AI to provide holistic mental health support for the RVCE community.
-          </p>
-          
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/signup" className="bg-linear-to-r from-cyan-500 to-sky-500 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105 inline-flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              Sign Up
-            </Link>
-            <Link href="/login" className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-8 py-3 rounded-lg font-semibold border-2 border-slate-200 dark:border-slate-700 hover:border-cyan-500 dark:hover:border-cyan-400 transition-all inline-flex items-center gap-2">
-              <LogIn className="w-5 h-5" />
-              Login
-            </Link>
+
+          {/* Right: Visual Element - Abstract Floating Cards */}
+          <div className="relative h-[500px] hidden md:block">
+            <div className="absolute inset-0 grid grid-cols-2 gap-4 animate-float">
+              <div className={cn(
+                "glass rounded-2xl p-6 space-y-4",
+                "hover:scale-105 transition-transform duration-300"
+              )}>
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary to-primary-dark flex items-center justify-center">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Real-time Health</h3>
+                <p className="text-sm text-muted-foreground">Fitbit integration for holistic insights</p>
+              </div>
+              
+              <div className={cn(
+                "glass rounded-2xl p-6 space-y-4 mt-12",
+                "hover:scale-105 transition-transform duration-300"
+              )}>
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-secondary to-accent flex items-center justify-center">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">AI Memory</h3>
+                <p className="text-sm text-muted-foreground">Personalized context across sessions</p>
+              </div>
+              
+              <div className={cn(
+                "glass rounded-2xl p-6 space-y-4",
+                "hover:scale-105 transition-transform duration-300"
+              )}>
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-accent to-primary flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Crisis Support</h3>
+                <p className="text-sm text-muted-foreground">24/7 emergency detection</p>
+              </div>
+              
+              <div className={cn(
+                "glass rounded-2xl p-6 space-y-4 mt-12",
+                "hover:scale-105 transition-transform duration-300"
+              )}>
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-secondary to-primary flex items-center justify-center">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Privacy First</h3>
+                <p className="text-sm text-muted-foreground">Your data stays secure</p>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Key Features Overview */}
-      <section className="container mx-auto px-6 py-16">
-        <h2 className="text-4xl font-bold text-center mb-12 text-slate-800 dark:text-slate-100">
-          Comprehensive Mental Health Support
-        </h2>
-        <div className="grid md:grid-cols-4 gap-6">
-          <FeatureCard
-            icon={<Activity className="w-8 h-8 text-cyan-500" />}
+      {/* Bento Grid - Key Features */}
+      <section className="container mx-auto px-6 py-20 max-w-7xl">
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+            Comprehensive Mental Health Support
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Combining cutting-edge AI, wearable data, and evidence-based practices
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-6 auto-rows-fr">
+          {/* Large Feature - Span 2 columns */}
+          <BentoCard
+            className="md:col-span-2 md:row-span-2"
+            icon={<Activity className="w-8 h-8 text-primary" />}
             title="Wearable Integration"
-            description="Real-time physiological data from your devices for comprehensive health insights"
+            description="Connect your Fitbit to get AI-powered correlations between your physical health and mental wellbeing. Track sleep, activity, and heart rate patterns."
+            gradient="from-primary/10 to-secondary/10"
           />
-          <FeatureCard
-            icon={<Brain className="w-8 h-8 text-sky-500" />}
-            title="AI-Powered Analysis"
-            description="Advanced LLM correlation between your queries and health metrics"
+          
+          <BentoCard
+            icon={<Brain className="w-8 h-8 text-secondary" />}
+            title="AI-Powered Memory"
+            description="Your AI remembers past conversations, goals, and patterns to provide truly personalized support."
+            gradient="from-secondary/10 to-accent/10"
           />
-          <FeatureCard
-            icon={<Shield className="w-8 h-8 text-emerald-500" />}
+          
+          <BentoCard
+            icon={<Shield className="w-8 h-8 text-accent" />}
             title="Privacy-First Design"
-            description="Secure data storage with role-based access and encrypted connections"
+            description="End-to-end encryption, secure storage, and you control your data."
+            gradient="from-accent/10 to-primary/10"
           />
-          <FeatureCard
+          
+          <BentoCard
+            className="md:col-span-2"
+            icon={<TrendingUp className="w-8 h-8 text-primary" />}
+            title="Evidence-Based Guidance"
+            description="RAG system retrieves mental health research and CBT techniques from curated documents to provide scientifically-backed advice."
+            gradient="from-primary/10 via-secondary/10 to-accent/10"
+          />
+          
+          <BentoCard
             icon={<Heart className="w-8 h-8 text-rose-500" />}
-            title="Personalized Care"
-            description="Context-aware responses tailored to RVCE community and your unique needs"
+            title="Crisis Detection"
+            description="Automatic emergency resource display and contact alerts when severe distress is detected."
+            gradient="from-rose-500/10 to-pink-500/10"
           />
         </div>
       </section>
 
-      {/* Core Principles */}
-      <section className="container mx-auto px-6 py-16 bg-white/50 dark:bg-slate-900/50 rounded-3xl my-16">
-        <h2 className="text-4xl font-bold text-center mb-12 text-slate-800 dark:text-slate-100">
-          Our Core Principles
-        </h2>
+      {/* Core Principles - Hover Cards */}
+      <section className="container mx-auto px-6 py-20 max-w-7xl">
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+            Our Core Principles
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Built on trust, transparency, and therapeutic best practices
+          </p>
+        </div>
         
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
           <PrincipleCard
-            icon={<Brain className="w-8 h-8 text-purple-500" />}
+            icon={<Brain className="w-8 h-8 text-indigo-500" />}
             title="AI-Augmented Care"
             description="AI assists and enhances human care through data analysis and personalized support, never replacing professional help."
           />
@@ -98,12 +205,17 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works */}
-      <section className="container mx-auto px-6 py-16 bg-white/50 dark:bg-slate-900/50 rounded-3xl my-16">
-        <h2 className="text-4xl font-bold text-center mb-12 text-slate-800 dark:text-slate-100">
-          How It Works
-        </h2>
+      <section className="container mx-auto px-6 py-20 max-w-7xl">
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+            How It Works
+          </h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Three simple steps to start your mental health journey
+          </p>
+        </div>
         
-        <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           <StepCard
             number="1"
             title="Create Your Profile"
@@ -123,8 +235,8 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="container mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-4 gap-8 text-center">
+      <section className="container mx-auto px-6 py-16 max-w-7xl">
+        <div className="grid md:grid-cols-4 gap-6 text-center">
           <StatCard number="100%" label="Privacy Protected" />
           <StatCard number="24/7" label="AI Support" />
           <StatCard number="RVCE" label="Community Focused" />
@@ -133,61 +245,140 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="bg-linear-to-r from-cyan-500 to-sky-500 rounded-3xl p-12 text-center text-white">
-          <h2 className="text-4xl font-bold mb-4">Ready to Start Your Mental Health Journey?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join our community and experience personalized, ethical AI-powered mental health support
-          </p>
-          <Link href="/signup" className="inline-block bg-white text-cyan-600 px-8 py-4 rounded-lg font-bold text-lg hover:shadow-2xl transition-all transform hover:scale-105">
-            Get Started Today
-          </Link>
+      <section className="container mx-auto px-6 py-20 max-w-7xl">
+        <div className={cn(
+          "relative overflow-hidden rounded-3xl p-12 text-center text-white",
+          "bg-linear-to-br from-primary via-secondary to-accent"
+        )}>
+          <div className="relative z-10 space-y-6">
+            <h2 className="text-4xl md:text-5xl font-bold">Ready to Start Your Mental Health Journey?</h2>
+            <p className="text-xl opacity-90 max-w-2xl mx-auto">
+              Join our community and experience personalized, ethical AI-powered mental health support
+            </p>
+            <Link 
+              href="/signup" 
+              className={cn(
+                "inline-block bg-white text-primary px-8 py-4 rounded-xl font-bold text-lg",
+                "hover:shadow-2xl transition-all transform hover:scale-105",
+                "shadow-xl"
+              )}
+            >
+              Get Started Today
+            </Link>
+          </div>
+          
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="container mx-auto px-6 py-8 text-center text-slate-600 dark:text-slate-400">
-        <p>&copy; 2025 DTL Mental Health Chatbot. Built with privacy, ethics, and care.</p>
+      <footer className="container mx-auto px-6 py-8 text-center text-muted-foreground max-w-7xl">
+        <p>&copy; 2025 DTL Mental Health Chatbot. Built with privacy, ethics, and care for RVCE.</p>
       </footer>
     </div>
   );
 }
 
-// Component: Feature Card
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+// Component: Bento Card with gradient background
+function BentoCard({ 
+  icon, 
+  title, 
+  description, 
+  gradient, 
+  className 
+}: { 
+  icon: React.ReactNode; 
+  title: string; 
+  description: string; 
+  gradient: string;
+  className?: string;
+}) {
   return (
-    <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-xl font-bold mb-3 text-slate-800 dark:text-slate-100">{title}</h3>
-      <p className="text-slate-600 dark:text-slate-300">{description}</p>
+    <div 
+      className={cn(
+        "group relative glass p-8 rounded-3xl",
+        "border-2 border-border hover:border-primary/50",
+        "transition-all duration-300 hover:-translate-y-1",
+        "hover:shadow-xl hover:shadow-primary/10",
+        className
+      )}
+    >
+      <div className={cn(
+        "absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity",
+        "bg-linear-to-br", gradient
+      )} />
+      
+      <div className="relative z-10 space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center shadow-lg">
+          {icon}
+        </div>
+        <h3 className="text-2xl font-bold">{title}</h3>
+        <p className="text-muted-foreground leading-relaxed">{description}</p>
+      </div>
     </div>
   );
 }
 
-// Component: Principle Card
-function PrincipleCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+// Component: Principle Card with hover effect
+function PrincipleCard({ 
+  icon, 
+  title, 
+  description 
+}: { 
+  icon: React.ReactNode; 
+  title: string; 
+  description: string; 
+}) {
   return (
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md hover:shadow-lg transition-all">
+    <div 
+      className={cn(
+        "glass p-6 rounded-2xl",
+        "border-2 border-border hover:border-primary/50",
+        "transition-all duration-300 hover:-translate-y-1",
+        "hover:shadow-lg hover:shadow-primary/5",
+        "group"
+      )}
+    >
       <div className="flex items-start gap-4">
-        <div className="shrink-0 mt-1">{icon}</div>
-        <div>
-          <h3 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">{title}</h3>
-          <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{description}</p>
+        <div className="shrink-0 mt-1 transition-transform group-hover:scale-110 duration-300">
+          {icon}
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-bold">{title}</h3>
+          <p className="text-muted-foreground leading-relaxed">{description}</p>
         </div>
       </div>
     </div>
   );
 }
 
-// Component: Step Card
-function StepCard({ number, title, description }: { number: string; title: string; description: string }) {
+// Component: Step Card with number badge
+function StepCard({ 
+  number, 
+  title, 
+  description 
+}: { 
+  number: string; 
+  title: string; 
+  description: string; 
+}) {
   return (
-    <div className="text-center">
-      <div className="w-16 h-16 bg-linear-to-br from-cyan-500 to-sky-500 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg">
+    <div className="text-center space-y-4">
+      <div 
+        className={cn(
+          "w-16 h-16 mx-auto rounded-2xl",
+          "bg-linear-to-br from-primary to-secondary",
+          "text-white text-2xl font-bold",
+          "flex items-center justify-center",
+          "shadow-lg shadow-primary/25"
+        )}
+      >
         {number}
       </div>
-      <h3 className="text-xl font-bold mb-2 text-slate-800 dark:text-slate-100">{title}</h3>
-      <p className="text-slate-600 dark:text-slate-300">{description}</p>
+      <h3 className="text-xl font-bold">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -195,11 +386,11 @@ function StepCard({ number, title, description }: { number: string; title: strin
 // Component: Stat Card
 function StatCard({ number, label }: { number: string; label: string }) {
   return (
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md">
-      <div className="text-4xl font-bold bg-linear-to-r from-cyan-600 to-sky-600 bg-clip-text text-transparent mb-2">
+    <div className="glass p-6 rounded-2xl space-y-2">
+      <div className="text-4xl font-bold bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent">
         {number}
       </div>
-      <div className="text-slate-600 dark:text-slate-300 font-medium">{label}</div>
+      <div className="text-muted-foreground font-medium">{label}</div>
     </div>
   );
 }

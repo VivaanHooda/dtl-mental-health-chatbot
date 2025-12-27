@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import FitbitWidget from '@/components/FitbitWidget';
 import EmergencyContactWidget from '@/components/EmergencyContactWidget';
+import ThemeToggle from '@/components/ThemeToggle';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -163,24 +165,28 @@ function DashboardContent() {
   ];
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900">
+    <div className="flex h-screen bg-background">
       {/* Sidebar for Widgets - Desktop */}
-      <aside className="hidden lg:block w-80 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
-        <div className="p-4 space-y-4">
+      <aside className="hidden lg:flex w-80 border-r border-border flex-col">
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Your Dashboard</h2>
+          <p className="text-sm text-muted-foreground mt-1">Health & Support</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <FitbitWidget />
           <EmergencyContactWidget />
         </div>
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar - Slide-out */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-900 overflow-y-auto shadow-xl">
-            <div className="p-4 space-y-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <div className="absolute right-0 top-0 bottom-0 w-80 glass shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="p-4 space-y-4 h-full overflow-y-auto">
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="mb-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                className="mb-4 p-2 hover:bg-muted rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -192,29 +198,42 @@ function DashboardContent() {
       )}
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
-        {/* Header */}
-        <header className="border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between">
+      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
+        {/* Header - Glassmorphic */}
+        <header className="glass border-b border-border/50 p-4 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-lg flex items-center justify-center">
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center",
+              "bg-linear-to-br from-primary via-secondary to-accent",
+              "shadow-lg shadow-primary/25"
+            )}>
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-lg font-medium text-slate-800 dark:text-slate-100">Mental Health Companion</h1>
+            <div>
+              <h1 className="text-lg font-semibold">Mental Health Compass</h1>
+              <p className="text-xs text-muted-foreground">AI-Powered Support</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="lg:hidden p-2 hover:bg-muted rounded-xl transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 text-sm",
+                  "hover:bg-muted rounded-xl transition-colors"
+                )}
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -222,62 +241,109 @@ function DashboardContent() {
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full max-w-3xl mx-auto">
-              <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-2xl flex items-center justify-center mb-6">
-                <Sparkles className="w-10 h-10 text-white" />
+              <div className={cn(
+                "w-24 h-24 rounded-3xl flex items-center justify-center mb-8",
+                "bg-linear-to-br from-primary via-secondary to-accent",
+                "shadow-xl shadow-primary/25"
+              )}>
+                <Sparkles className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-3xl font-medium text-slate-800 dark:text-slate-100 mb-3">
+              <h2 className="text-4xl font-bold tracking-tight mb-3">
                 Hello, {user?.user_metadata?.username || 'there'}
               </h2>
-              <p className="text-slate-600 dark:text-slate-400 text-center mb-8">
-                How can I help you today?
+              <p className="text-xl text-muted-foreground text-center mb-12">
+                I'm here to support your mental health journey
               </p>
               
-              {/* Suggested Prompts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+              {/* Suggested Prompts - Bento Style */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
                 {suggestedPrompts.map((prompt, index) => (
                   <button
                     key={index}
                     onClick={() => setInputMessage(prompt)}
-                    className="p-4 text-left bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-all"
+                    className={cn(
+                      "group p-6 text-left glass",
+                      "border-2 border-border hover:border-primary/50",
+                      "rounded-2xl transition-all duration-300",
+                      "hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10"
+                    )}
                   >
-                    <p className="text-sm text-slate-700 dark:text-slate-200">{prompt}</p>
+                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      {prompt}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto space-y-8">
               {messages.map((message) => (
-                <div key={message.id} className="flex gap-4">
+                <div key={message.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Avatar */}
                   {message.role === 'assistant' && (
-                    <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+                    <div className={cn(
+                      "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+                      "bg-linear-to-br from-primary via-secondary to-accent",
+                      "shadow-lg shadow-primary/25"
+                    )}>
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                   )}
                   {message.role === 'user' && (
-                    <div className="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center shrink-0">
-                      <UserIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                    <div className="w-10 h-10 glass rounded-2xl flex items-center justify-center shrink-0 border-2 border-border">
+                      <UserIcon className="w-5 h-5 text-muted-foreground" />
                     </div>
                   )}
-                  <div className="flex-1">
-                    <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:mb-3 prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-h3:text-lg prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-cyan-500 prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:my-3 prose-strong:text-slate-900 dark:prose-strong:text-slate-100 prose-strong:font-semibold prose-em:text-slate-700 dark:prose-em:text-slate-300 prose-code:text-cyan-600 dark:prose-code:text-cyan-400 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-slate-800 prose-pre:text-slate-100">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
+                  
+                  {/* Message Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className={cn(
+                      "p-6 rounded-3xl",
+                      message.role === 'user' 
+                        ? "glass border-2 border-border ml-8" 
+                        : ""
+                    )}>
+                      <div className={cn(
+                        "prose prose-slate dark:prose-invert max-w-none",
+                        "prose-p:leading-relaxed prose-p:text-[15px]",
+                        "prose-headings:font-semibold prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3",
+                        "prose-ul:my-4 prose-ol:my-4 prose-li:my-2 prose-li:text-[15px]",
+                        "prose-strong:text-foreground prose-strong:font-semibold",
+                        "prose-blockquote:border-l-4 prose-blockquote:border-primary",
+                        "prose-blockquote:glass prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:my-4",
+                        "prose-code:text-primary prose-code:bg-muted",
+                        "prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm",
+                        "prose-pre:glass prose-pre:border-2 prose-pre:border-border"
+                      )}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2 ml-2">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
               ))}
+              
+              {/* Typing Indicator */}
               {isLoading && (
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 via-sky-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+                <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className={cn(
+                    "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
+                    "bg-linear-to-br from-primary via-secondary to-accent",
+                    "shadow-lg shadow-primary/25"
+                  )}>
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="glass rounded-3xl px-6 py-5 inline-block border-2 border-border">
+                      <div className="flex gap-1.5 typing-indicator">
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -287,48 +353,63 @@ function DashboardContent() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="border-t border-slate-200 dark:border-slate-800 p-4">
+        {/* Input Area - Floating Premium Design */}
+        <div className="p-4 border-t border-border/50">
           {chatDisabled ? (
             <div className="max-w-3xl mx-auto">
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-3xl px-6 py-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shrink-0">
-                    <span className="text-white text-xl">🚨</span>
+              <div className={cn(
+                "glass border-2 border-red-500 rounded-3xl p-6",
+                "bg-linear-to-br from-red-500/10 to-orange-500/10"
+              )}>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center shrink-0">
+                    <span className="text-white text-2xl">🚨</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-red-900 dark:text-red-100">Chat Temporarily Disabled</h3>
-                    <p className="text-sm text-red-800 dark:text-red-200">Please contact emergency services or a mental health professional immediately.</p>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-2">Chat Temporarily Disabled</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Please contact emergency services or a mental health professional immediately.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      For your safety, this chat has been disabled. Please use the emergency resources provided.
+                    </p>
                   </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-red-300 dark:border-red-700">
-                  <p className="text-xs text-red-700 dark:text-red-300">
-                    For your safety, this chat has been disabled. Please use the emergency resources provided above.
-                  </p>
                 </div>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
-              <div className="flex gap-3 items-end bg-slate-50 dark:bg-slate-800 rounded-3xl px-4 py-2 border border-slate-200 dark:border-slate-700 focus-within:border-cyan-500 dark:focus-within:border-cyan-500 transition-colors">
+              <div className={cn(
+                "flex gap-3 items-center glass rounded-3xl px-6 py-4",
+                "border-2 border-border focus-within:border-primary",
+                "transition-all duration-300 shadow-lg",
+                "focus-within:shadow-xl focus-within:shadow-primary/10"
+              )}>
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Ask me anything about mental health..."
-                  className="flex-1 bg-transparent px-2 py-2 focus:outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                  placeholder="Share what's on your mind..."
+                  className="flex-1 bg-transparent focus:outline-none text-foreground placeholder:text-muted-foreground"
                   disabled={isLoading}
                 />
                 <button
                   type="submit"
                   disabled={!inputMessage.trim() || isLoading}
-                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={cn(
+                    "p-3 rounded-xl transition-all duration-300",
+                    "bg-linear-to-r from-primary to-secondary",
+                    "text-white shadow-lg shadow-primary/25",
+                    "hover:shadow-xl hover:shadow-primary/40",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "disabled:hover:shadow-lg"
+                  )}
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-                AI companion powered by Gemini • Not a replacement for professional care
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Powered by Gemini AI • Your conversations are private and secure
               </p>
             </form>
           )}
@@ -341,10 +422,16 @@ function DashboardContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-cyan-900 flex items-center justify-center">
-        <div className="text-center">
-          <Sparkles className="w-12 h-12 text-cyan-500 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-300">Loading...</p>
+      <div className="min-h-screen bg-background aurora-bg flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className={cn(
+            "w-16 h-16 mx-auto rounded-2xl flex items-center justify-center",
+            "bg-linear-to-br from-primary via-secondary to-accent",
+            "shadow-xl shadow-primary/25 animate-pulse"
+          )}>
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     }>

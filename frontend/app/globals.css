@@ -1,12 +1,25 @@
 @import "tailwindcss";
 
+/* Serenity Theme - Calm Technology Design System */
 :root {
-  --background: #f8fafc;
-  --foreground: #1e293b;
-  --primary: #0ea5e9;
-  --primary-dark: #0284c7;
-  --accent: #06b6d4;
-  --text-muted: #64748b;
+  /* Light mode - Soft, warm neutrals */
+  --background: #fafaf9;
+  --foreground: #18181b;
+  --primary: #6366f1; /* Indigo - Trust */
+  --primary-dark: #4f46e5;
+  --secondary: #14b8a6; /* Teal - Calm */
+  --accent: #84cc16; /* Sage green - Growth */
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  
+  /* Semantic colors */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
 }
 
 @theme inline {
@@ -14,22 +27,133 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
   --color-accent: var(--accent);
-  --color-text-muted: var(--text-muted);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Animation tokens */
+  --animation-duration: 200ms;
+  --animation-duration-slow: 300ms;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --text-muted: #94a3b8;
+    /* Dark mode - Soft charcoal, not pure black */
+    --background: #0a0a0b;
+    --foreground: #e4e4e7;
+    --primary: #818cf8; /* Lighter indigo for dark mode */
+    --primary-dark: #6366f1;
+    --secondary: #2dd4bf;
+    --accent: #a3e635;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --card: #18181b;
+    --card-foreground: #fafafa;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+* {
+  @apply border-border;
 }
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar - Subtle and calming */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}
+
+/* Glassmorphism utility */
+.glass {
+  @apply bg-card/50 backdrop-blur-xl border border-border/50;
+}
+
+/* Aurora background effect */
+.aurora-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.aurora-bg::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  top: -250px;
+  left: -250px;
+  animation: aurora-1 20s ease-in-out infinite;
+  z-index: -1;
+}
+
+.aurora-bg::after {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.12) 0%, transparent 70%);
+  bottom: -300px;
+  right: -300px;
+  animation: aurora-2 25s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes aurora-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(100px, 50px) scale(1.1); }
+}
+
+@keyframes aurora-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-80px, -60px) scale(1.15); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Typing indicator animation */
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.typing-indicator span {
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
