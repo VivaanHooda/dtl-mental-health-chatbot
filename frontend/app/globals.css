@@ -42,21 +42,19 @@
   --animation-duration-slow: 300ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Dark mode - Soft charcoal, not pure black */
-    --background: #0a0a0b;
-    --foreground: #e4e4e7;
-    --primary: #818cf8; /* Lighter indigo for dark mode */
-    --primary-dark: #6366f1;
-    --secondary: #2dd4bf;
-    --accent: #a3e635;
-    --muted: #18181b;
-    --muted-foreground: #a1a1aa;
-    --border: #27272a;
-    --card: #18181b;
-    --card-foreground: #fafafa;
-  }
+.dark {
+  /* Dark mode - Soft charcoal, not pure black */
+  --background: #0a0a0b;
+  --foreground: #e4e4e7;
+  --primary: #818cf8; /* Lighter indigo for dark mode */
+  --primary-dark: #6366f1;
+  --secondary: #2dd4bf;
+  --accent: #a3e635;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --border: #27272a;
+  --card: #18181b;
+  --card-foreground: #fafafa;
 }
 
 * {
