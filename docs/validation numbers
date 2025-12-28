@@ -1,0 +1,31 @@
+100 → Training Loss 1.036400, Validation Loss 1.073328
+
+200 → Training Loss 0.932400, Validation Loss 1.010547
+
+300 → Training Loss 0.983100, Validation Loss 0.956233
+
+400 → Training Loss 0.913100, Validation Loss 0.932605
+
+500 → Training Loss 0.905100, Validation Loss 0.919019
+
+600 → Training Loss 0.890800, Validation Loss 0.912400
+
+700 → Training Loss 0.876300, Validation Loss 0.904900
+
+800 → Training Loss 0.862700, Validation Loss 0.897800
+
+900 → Training Loss 0.849900, Validation Loss 0.889600
+
+1000 → Training Loss 0.821500, Validation Loss 0.878200
+
+1100 → Training Loss 0.830500, Validation Loss 0.873433
+
+1200 → Training Loss 0.822400, Validation Loss 0.870646
+
+1400 → Training Loss 0.789900, Validation Loss 0.863088
+
+1500 → Training Loss 0.755100, Validation Loss 0.861438
+
+1600 → Training Loss 0.769900, Validation Loss 0.856710
+
+1800 → Training Loss 0.794900, Validation Loss 0.851596
