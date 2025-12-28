@@ -9,6 +9,7 @@
  */
 
 import { DocumentChunk } from './processor';
+import { Docling } from 'docling-sdk';
 
 // --- TYPES ---
 
@@ -141,8 +142,6 @@ async function extractStructuredContent(
  * Call Docling API to process PDF
  */
 async function callDocling(buffer: Buffer): Promise<any> {
-  const { Docling } = await import('docling-sdk');
-  
   const baseUrl = process.env.DOCLING_URL || 'http://localhost:5001';
   
   const client = new Docling({

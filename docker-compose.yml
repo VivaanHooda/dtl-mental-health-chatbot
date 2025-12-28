@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   docling:
     image: quay.io/docling-project/docling-serve:latest

@@ -148,13 +148,30 @@ export async function generateWithContext(
   // Add crisis detection prompt if needed
   const crisisAddition = isCrisis ? getCrisisPromptAddition() : '';
 
+  // Smart context truncation - keep most relevant parts
+  const maxContextLength = 2000; // Increased from 500
+  const maxHealthLength = 800;   // Increased from 300
+  const maxHistoryLength = 600;  // Keep more history
+  
+  const truncatedContext = contextText.length > maxContextLength 
+    ? contextText.substring(0, maxContextLength) + '...[more available]' 
+    : contextText;
+  
+  const truncatedHealth = healthDataText.length > maxHealthLength
+    ? healthDataText.substring(0, maxHealthLength) + '...[summary truncated]'
+    : healthDataText;
+  
+  const truncatedHistory = historyText.length > maxHistoryLength
+    ? historyText.substring(historyText.length - maxHistoryLength)
+    : historyText;
+
   // Create the prompt - optimized for speed and concise responses
   const prompt = `You are a supportive mental health companion for college students. Be warm, empathetic, and concise.
 ${crisisAddition}
 ${memoryContext ? `\n**What I remember about you:**\n${memoryContext}\n` : ''}
-${contextText ? `\n**Relevant guidance:**\n${contextText.substring(0, 500)}\n` : ''}
-${healthDataText ? `\n**Health context:**\n${healthDataText.substring(0, 300)}\n` : ''}
-${historyText ? `\n**Recent chat:**\n${historyText}\n` : ''}
+${truncatedContext ? `\n**Relevant guidance from mental health resources:**\n${truncatedContext}\n` : ''}
+${truncatedHealth ? `\n**Health context:**\n${truncatedHealth}\n` : ''}
+${truncatedHistory ? `\n**Recent chat:**\n${truncatedHistory}\n` : ''}
 **Student asks:** ${userMessage}
 
 **Instructions:**
@@ -165,6 +182,7 @@ ${historyText ? `\n**Recent chat:**\n${historyText}\n` : ''}
 5. Be conversational and warm
 6. Reference their name/past if relevant
 7. Only suggest professional help if truly needed
+8. **IMPORTANT**: If relevant guidance is provided above, use it to inform your response
 
 Respond naturally and concisely:`;
 
@@ -205,24 +223,21 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
   const genAI = getGeminiClient();
   
-  // Use Gemini's text embedding model
-  const model = genAI.getGenerativeModel({ model: "embedding-001" });
+  // Use text-embedding-004 - MUST match the model used for storing documents
+  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
   
   try {
-    console.log('🔵 Generating new embedding (rate-limited to 12/min for safety)...');
+    console.log('🔵 Generating embedding with text-embedding-004...');
     const result = await model.embedContent(text);
     const embedding = result.embedding;
     
-    // embedding-001 produces 768 dimensions, we need to pad to 1024 for Pinecone
+    // text-embedding-004 produces 768 dimensions
     const embeddingArray = Array.isArray(embedding.values) 
       ? embedding.values 
       : Array.from(embedding.values);
     
-    const paddedEmbedding = [...embeddingArray, ...Array(1024 - embeddingArray.length).fill(0)];
-    const finalEmbedding = paddedEmbedding.slice(0, 1024);
-    
-    console.log('✅ Embedding generated');
-    return finalEmbedding;
+    console.log('✅ Embedding generated (768 dimensions)');
+    return embeddingArray;
   } catch (error: any) {
     console.error('Gemini embedding error:', error);
     
@@ -240,11 +255,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
           ? embedding.values 
           : Array.from(embedding.values);
         
-        const paddedEmbedding = [...embeddingArray, ...Array(1024 - embeddingArray.length).fill(0)];
-        const finalEmbedding = paddedEmbedding.slice(0, 1024);
-        
-        console.log('✅ Embedding generated after retry');
-        return finalEmbedding;
+        console.log('✅ Embedding generated after retry (768 dimensions)');
+        return embeddingArray;
       } catch (retryError: any) {
         throw new Error(`Failed to generate embedding after retry: ${retryError.message}`);
       }

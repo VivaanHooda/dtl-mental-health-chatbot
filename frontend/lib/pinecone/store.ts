@@ -8,9 +8,9 @@ const embeddingCache = new Map<string, number[]>();
 function initGenAI(): GoogleGenerativeAI {
   if (genAI) return genAI;
   
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GOOGLE_API_KEY is not set in environment variables');
+    throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
   
   genAI = new GoogleGenerativeAI(apiKey);

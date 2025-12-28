@@ -178,8 +178,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false, // Disable Next.js body parsing to handle FormData
-  },
-};
+// Note: bodyParser config is not needed in Next.js 16 app router
+// FormData is handled automatically

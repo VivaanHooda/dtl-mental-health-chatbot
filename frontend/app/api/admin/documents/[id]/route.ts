@@ -4,7 +4,7 @@ import { deleteFromPinecone } from '@/lib/pinecone/delete';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -26,7 +26,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
-    const documentId = params.id;
+    // Await params in Next.js 16
+    const { id } = await params;
+    const documentId = id;
 
     if (!documentId) {
       return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
