@@ -1,5 +1,5 @@
 import { getPineconeClient } from '@/lib/pinecone/client';
-import { generateEmbedding, getGeminiClient } from '@/lib/gemini/client';
+import { generateEmbedding } from '@/lib/gemini/client';
 
 export interface RetrievedChunk {
   text: string;
@@ -22,7 +22,7 @@ async function enhanceQuery(userQuery: string): Promise<string> {
     // Quick keyword expansion for common mental health topics (no API call)
     const lowerQuery = userQuery.toLowerCase();
     const keywords: string[] = [];
-    
+
     // Detect topic and add relevant context keywords
     if (lowerQuery.match(/\b(stress|stressed|pressure|overwhelm)\b/)) {
       keywords.push('coping strategies', 'stress management', 'relaxation techniques');
@@ -42,7 +42,7 @@ async function enhanceQuery(userQuery: string): Promise<string> {
     if (lowerQuery.match(/\b(exam|test|grade|study|academic)\b/)) {
       keywords.push('academic stress', 'study strategies', 'test anxiety');
     }
-    
+
     // If query is very short (<10 words) and we found relevant keywords, enhance it
     const wordCount = userQuery.split(/\s+/).length;
     if (wordCount < 10 && keywords.length > 0) {
@@ -50,7 +50,7 @@ async function enhanceQuery(userQuery: string): Promise<string> {
       console.log('🔍 RAG: Enhanced query (keyword expansion):', enhanced.substring(0, 100));
       return enhanced;
     }
-    
+
     return userQuery;
   } catch (error) {
     console.warn('⚠️ RAG: Query enhancement failed, using original query');
@@ -70,28 +70,28 @@ export async function queryRAG(
 ): Promise<RetrievedChunk[]> {
   try {
     console.log('🔵 RAG: Processing query:', query.substring(0, 100));
-    
+
     // Enhance query for better retrieval (fast keyword expansion)
     const enhancedQuery = await enhanceQuery(query);
-    
+
     console.log('🔵 RAG: Generating embedding for enhanced query...');
-    
-    // Generate embedding for the enhanced query using Gemini
+
+    // Generate embedding for the enhanced query using Ollama
     const queryEmbedding = await generateEmbedding(enhancedQuery);
-    
+
     console.log('🟢 RAG: Embedding generated, querying Pinecone...');
-    
+
     // Query Pinecone - getPineconeClient() already returns the index
     const index = await getPineconeClient();
-    
+
     const queryResponse = await index.query({
       vector: queryEmbedding,
       topK: topK,
       includeMetadata: true,
     });
-    
+
     console.log('🟢 RAG: Found', queryResponse.matches.length, 'relevant chunks');
-    
+
     // Extract and format results
     const results: RetrievedChunk[] = queryResponse.matches.map(match => ({
       text: (match.metadata?.text as string) || '',
@@ -104,13 +104,13 @@ export async function queryRAG(
       },
       score: match.score || 0,
     }));
-    
+
     // Filter out low-quality matches (score < 0.3)
     const filteredResults = results.filter(r => r.score > 0.3);
-    
-    console.log('🟢 RAG: Returning', filteredResults.length, 'high-quality chunks (scores:', 
+
+    console.log('🟢 RAG: Returning', filteredResults.length, 'high-quality chunks (scores:',
       filteredResults.map(r => r.score.toFixed(2)).join(', ') + ')');
-    
+
     return filteredResults;
   } catch (error: any) {
     console.error('🔴 RAG: Error querying vector database:', error);

@@ -9,12 +9,12 @@ import { sendEmergencyAlert } from '@/lib/email/crisis-alert';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
-  
+
   try {
     const supabase = await createClient();
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       console.error('🔴 CHAT: Auth failed:', authError?.message);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,31 +33,31 @@ export async function POST(request: NextRequest) {
 
     // Check for SEVERE crisis
     const isSevereCrisis = detectSevereCrisis(message);
-    
+
     if (isSevereCrisis) {
       console.log('🚨🚨 CHAT: SEVERE CRISIS DETECTED - EMERGENCY PROTOCOL ACTIVATED');
-      
+
       // Get user profile with emergency contact
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('username, email, emergency_contact_email')
         .eq('user_id', user.id)
         .single();
-      
+
       let emergencyResponse = getSevereEmergencyResourcesText();
       let emailSent = false;
-      
+
       // Send emergency email if contact is linked
       if (profile?.emergency_contact_email) {
         console.log('📧 CHAT: Emergency contact found, sending alert...');
-        
+
         emailSent = await sendEmergencyAlert({
           emergencyContactEmail: profile.emergency_contact_email,
           userName: profile.username || 'User',
           userEmail: profile.email || user.email || '',
           timestamp: new Date(),
         });
-        
+
         if (emailSent) {
           console.log('✅ CHAT: Emergency alert email sent successfully');
           emergencyResponse += '\n\n---\n\n**✅ Emergency Alert Sent**\n\nAn emergency notification has been sent to your emergency contact. Help is on the way.';
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         console.log('⚪ CHAT: No emergency contact linked');
         emergencyResponse += '\n\n---\n\n**ℹ️ No Emergency Contact Linked**\n\nConsider adding an emergency contact in your dashboard settings for faster support in crisis situations.';
       }
-      
+
       // Store the emergency interaction
       try {
         await supabase.from('chat_messages').insert([
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       } catch (dbError) {
         console.warn('⚠️ CHAT: Failed to save emergency interaction:', dbError);
       }
-      
+
       return NextResponse.json({
         success: true,
         response: emergencyResponse,
@@ -160,12 +160,12 @@ export async function POST(request: NextRequest) {
     let aiHealthInsights: any = null;
     if (fitbitData?.recentData && fitbitData.recentData.length > 0) {
       try {
-        const memoryContext = userMemories.length > 0 
+        const memoryContext = userMemories.length > 0
           ? userMemories.map(m => m.memory).join('. ')
           : undefined;
-        
+
         aiHealthInsights = await analyzeHealthDataWithAI(fitbitData.recentData, memoryContext);
-        
+
         if (aiHealthInsights) {
           const dateRange = `${fitbitData.recentData[fitbitData.recentData.length - 1]?.date} to ${fitbitData.recentData[0]?.date}`;
           healthInsightsText = formatAIInsightsForMemory(aiHealthInsights, dateRange);
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     // Query RAG
     let relevantChunks: any[] = [];
     const ragEnabled = process.env.ENABLE_RAG !== 'false';
-    
+
     if (ragEnabled) {
       try {
         console.log('🔵 CHAT: Querying RAG system...');
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate response
-    console.log('🔵 CHAT: Generating response with Gemini...');
+    console.log('🔵 CHAT: Generating response with Ollama...');
     const response = await generateWithContext(
       message,
       relevantChunks,
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🟢 CHAT: Response generated successfully');
-    
+
     // Store health insights in memory
     if (healthInsightsText && aiHealthInsights) {
       addMemory(user.id, [
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         console.warn('⚠️ CHAT: Failed to store health insights in memory:', error);
       });
     }
-    
+
     // Store conversation memory
     if (!isCrisis) {
       addMemory(user.id, [
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
         console.warn('⚠️ CHAT: Failed to store conversation memory:', error);
       });
     }
-    
+
     // Store in database
     try {
       await supabase.from('chat_messages').insert([
@@ -277,19 +277,23 @@ export async function POST(request: NextRequest) {
       stack: error.stack,
       name: error.name,
     });
-    
+
     let errorMessage = error.message || 'Failed to generate response';
-    
-    if (error.message?.includes('GEMINI_API_KEY')) {
-      errorMessage = 'Gemini API key is not configured. Please contact the administrator.';
+
+    if (error.message?.includes('not running') || error.message?.includes('ECONNREFUSED')) {
+      errorMessage = 'AI service (Ollama) is not running. Please start Ollama with: ollama serve';
+    } else if (error.message?.includes('not found') && error.message?.includes('model')) {
+      errorMessage = 'AI model not found. Please pull the required models in Ollama.';
     } else if (error.message?.includes('PINECONE')) {
       errorMessage = 'Vector database is not configured properly. Some features may be limited.';
+    } else if (error.message?.includes('timeout')) {
+      errorMessage = 'Request timed out. The AI model may be loading or overloaded.';
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     );

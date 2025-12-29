@@ -113,22 +113,22 @@ function DashboardContent() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
-      
+
       // Check if chat should be disabled due to severe crisis
       if (data.chatDisabled) {
         setChatDisabled(true);
         console.log('🚨 CHAT DISABLED: Severe crisis detected');
       }
-      
+
       // Log if RAG context was used
       if (data.contextUsed && data.sources?.length > 0) {
         console.log('📚 Used context from:', data.sources.map((s: any) => s.filename).join(', '));
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      
+
       let errorContent = "I apologize, but I'm having trouble responding right now.";
-      
+
       if (error.message?.includes('API key')) {
         errorContent = "⚠️ The AI service is not properly configured. Please contact support or check the console for details.";
       } else if (error.message?.includes('rate limit')) {
@@ -138,7 +138,7 @@ function DashboardContent() {
       } else {
         errorContent += " Please try again in a moment.";
       }
-      
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: errorContent,
@@ -254,7 +254,7 @@ function DashboardContent() {
               <p className="text-xl text-muted-foreground text-center mb-12">
                 I'm here to support your mental health journey
               </p>
-              
+
               {/* Suggested Prompts - Bento Style */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
                 {suggestedPrompts.map((prompt, index) => (
@@ -294,13 +294,13 @@ function DashboardContent() {
                       <UserIcon className="w-5 h-5 text-muted-foreground" />
                     </div>
                   )}
-                  
+
                   {/* Message Content */}
                   <div className="flex-1 min-w-0">
                     <div className={cn(
                       "p-6 rounded-3xl",
-                      message.role === 'user' 
-                        ? "glass border-2 border-border ml-8" 
+                      message.role === 'user'
+                        ? "glass border-2 border-border ml-8"
                         : ""
                     )}>
                       <div className={cn(
@@ -326,7 +326,7 @@ function DashboardContent() {
                   </div>
                 </div>
               ))}
-              
+
               {/* Typing Indicator */}
               {isLoading && (
                 <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -409,7 +409,7 @@ function DashboardContent() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
-                Powered by Gemini AI • Your conversations are private and secure
+                Powered by Local AI (Ollama) • Your conversations are private and secure
               </p>
             </form>
           )}

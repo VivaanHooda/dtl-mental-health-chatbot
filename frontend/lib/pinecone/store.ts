@@ -1,21 +1,8 @@
 import { getPineconeClient } from './client';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateEmbedding as ollamaGenerateEmbedding, ollamaConfig } from '@/lib/ollama/client';
 
-// Gemini client initialization
-let genAI: GoogleGenerativeAI | null = null;
+// Embedding cache for performance
 const embeddingCache = new Map<string, number[]>();
-
-function initGenAI(): GoogleGenerativeAI {
-  if (genAI) return genAI;
-  
-  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set in environment variables');
-  }
-  
-  genAI = new GoogleGenerativeAI(apiKey);
-  return genAI;
-}
 
 async function generateEmbedding(text: string): Promise<number[]> {
   try {
@@ -25,14 +12,12 @@ async function generateEmbedding(text: string): Promise<number[]> {
       return embeddingCache.get(cacheKey)!;
     }
 
-    const client = initGenAI();
-    const model = client.getGenerativeModel({ model: 'text-embedding-004' });
-    const result = await model.embedContent(text);
-    const embedding = result.embedding.values;
+    // Use Ollama for embedding generation
+    const embedding = await ollamaGenerateEmbedding(text);
 
     // Cache result
     embeddingCache.set(cacheKey, embedding);
-    
+
     // Limit cache size
     if (embeddingCache.size > 1000) {
       const firstKey = embeddingCache.keys().next().value;
@@ -44,8 +29,11 @@ async function generateEmbedding(text: string): Promise<number[]> {
     return embedding;
   } catch (error: any) {
     console.error('Error generating embedding:', error);
-    if (error.message?.includes('429') || error.message?.includes('quota')) {
-      throw new Error('Gemini API rate limit exceeded. Please wait and try again.');
+    if (error.message?.includes('not running') || error.message?.includes('ECONNREFUSED')) {
+      throw new Error('Ollama service not running. Please start Ollama with: ollama serve');
+    }
+    if (error.message?.includes('not found')) {
+      throw new Error(`Embedding model '${ollamaConfig.embedModel}' not found. Run: ollama pull ${ollamaConfig.embedModel}`);
     }
     throw new Error(`Failed to generate embedding: ${error.message}`);
   }
@@ -90,13 +78,13 @@ export async function storeInPinecone(
 ): Promise<void> {
   try {
     const index = await getPineconeClient();
-    
+
     console.log(`📊 Storing ${chunks.length} chunks for document: ${filename}`);
 
     // Process chunks in batches to avoid rate limits
     const batchSize = 100;
     const batches = [];
-    
+
     for (let i = 0; i < chunks.length; i += batchSize) {
       batches.push(chunks.slice(i, i + batchSize));
     }
@@ -107,7 +95,7 @@ export async function storeInPinecone(
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
-      
+
       console.log(`⚙️ Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} chunks)...`);
 
       // Generate embeddings for all chunks in batch
@@ -123,7 +111,7 @@ export async function storeInPinecone(
 
           // Create vector record
           const vectorId = `${documentId}_chunk_${globalIndex}`;
-          
+
           vectors.push({
             id: vectorId,
             values: embedding,
@@ -137,9 +125,9 @@ export async function storeInPinecone(
               // Include any additional metadata
               ...chunk.metadata,
               // Store structured data if available (for tables/images)
-              ...(chunk.structuredData && { 
+              ...(chunk.structuredData && {
                 hasStructuredData: true,
-                structuredDataType: chunk.contentType 
+                structuredDataType: chunk.contentType
               }),
             },
           });
@@ -206,7 +194,7 @@ export async function storeSingleChunk(
 
     // Create vector record
     const vectorId = `${documentId}_chunk_${chunkIndex}`;
-    
+
     const vector: VectorRecord = {
       id: vectorId,
       values: embedding,
@@ -245,7 +233,7 @@ export async function updateDocumentVectors(
   try {
     // First delete existing vectors
     const index = await getPineconeClient();
-    
+
     await index.deleteMany({
       filter: {
         documentId: { $eq: documentId }

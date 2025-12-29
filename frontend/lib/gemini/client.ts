@@ -1,42 +1,29 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+/**
+ * LLM Client - Now using Ollama for local inference
+ * 
+ * This module provides chat generation and embeddings using local Ollama service
+ * instead of cloud-based Gemini API.
+ */
+
 import { getCrisisPromptAddition } from "@/lib/safety/crisis-detection";
+import {
+  generateText as ollamaGenerateText,
+  generateEmbedding as ollamaGenerateEmbedding,
+  checkOllamaHealth,
+  ollamaConfig
+} from "@/lib/ollama/client";
 
-// Initialize Gemini client
-let geminiClient: GoogleGenerativeAI | null = null;
+// Export Ollama config for other modules
+export { ollamaConfig };
 
-// Rate limiting: Track last request time
-let lastEmbeddingRequest = 0;
-let lastGenerationRequest = 0;
-const EMBEDDING_DELAY_MS = 0; // No delay - single user development
-const GENERATION_DELAY_MS = 0; // No delay - single user development
-
-export function getGeminiClient(): GoogleGenerativeAI {
-  if (!geminiClient) {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('🔴 GEMINI: API key not found in environment variables');
-      console.error('🔴 GEMINI: Please add GEMINI_API_KEY to your .env.local file');
-      throw new Error('GEMINI_API_KEY is not set. Please add it to your .env.local file');
-    }
-    console.log('🟢 GEMINI: API key found, initializing client');
-    geminiClient = new GoogleGenerativeAI(apiKey);
-  }
-  return geminiClient;
+/**
+ * Check if LLM service is available
+ */
+export async function checkLLMHealth(): Promise<boolean> {
+  return await checkOllamaHealth();
 }
 
-// Helper function to wait/throttle requests
-async function throttle(lastRequest: number, delayMs: number): Promise<void> {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequest;
-  
-  if (timeSinceLastRequest < delayMs) {
-    const waitTime = delayMs - timeSinceLastRequest;
-    console.log(`⏳ Rate limiting: Waiting ${waitTime}ms before next request`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-}
-
-// Generate text using Gemini with context
+// Generate text using Ollama with context
 export async function generateWithContext(
   userMessage: string,
   contextChunks: Array<{ text: string; metadata: any }>,
@@ -44,25 +31,8 @@ export async function generateWithContext(
   fitbitData?: any,
   isCrisis: boolean = false,
   userMemories?: Array<{ id: string; memory: string; category?: string; score: number }>,
-  aiHealthInsights?: any // AI-generated health analysis from fine-tuned model
+  aiHealthInsights?: any // AI-generated health analysis
 ) {
-  // Throttle generation requests
-  await throttle(lastGenerationRequest, GENERATION_DELAY_MS);
-  lastGenerationRequest = Date.now();
-
-  const genAI = getGeminiClient();
-  
-  // Use Gemini 2.0 Flash - latest experimental model
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      temperature: 0.7,
-      topP: 0.9,
-      topK: 40,
-      maxOutputTokens: 2048,
-    },
-  });
-
   // Build context from retrieved chunks
   const contextText = contextChunks
     .map((chunk, idx) => `[Context ${idx + 1}]\n${chunk.text}`)
@@ -74,43 +44,42 @@ export async function generateWithContext(
     ? recentHistory.map(msg => `${msg.role === 'user' ? 'Student' : 'Assistant'}: ${msg.content}`).join('\n\n')
     : '';
 
-  // Build user memory context from Mem0
+  // Build user memory context from Mem0 - Enhanced for personalization
   let memoryContext = '';
   if (userMemories && userMemories.length > 0) {
-    memoryContext = '\n## Personalized Context (What I Remember About This Student):\n';
-    memoryContext += userMemories
+    memoryContext = userMemories
       .map((mem, idx) => {
-        const categoryLabel = mem.category ? `[${mem.category}]` : '';
-        return `${idx + 1}. ${categoryLabel} ${mem.memory}`;
+        const categoryLabel = mem.category ? `[${mem.category.toUpperCase()}]` : '[GENERAL]';
+        return `• ${categoryLabel} ${mem.memory}`;
       })
       .join('\n');
-    memoryContext += '\n\n**Important**: Use these memories to provide personalized, contextually-aware support. Reference past conversations, patterns, and preferences naturally.\n';
+    memoryContext += '\n\n**Note**: Use these memories to provide personalized support. Reference their name, past concerns, preferences, and patterns naturally in your response.';
   }
 
   // Build Fitbit health data context
   let healthDataText = '';
   if (fitbitData?.connected && fitbitData?.recentData?.length > 0) {
     healthDataText = '\n## Student\'s Health Metrics (Last 7 Days):\n';
-    
+
     // Organize by data type
     const activityData = fitbitData.recentData.filter((d: any) => d.type === 'activity');
     const heartRateData = fitbitData.recentData.filter((d: any) => d.type === 'heartrate');
     const sleepData = fitbitData.recentData.filter((d: any) => d.type === 'sleep');
-    
+
     if (activityData.length > 0) {
       healthDataText += '\n### Activity Levels:\n';
       activityData.forEach((d: any) => {
         healthDataText += `- ${d.date}: ${d.data.steps} steps, ${d.data.activeMinutes} active minutes, ${d.data.calories} calories\n`;
       });
     }
-    
+
     if (heartRateData.length > 0) {
       healthDataText += '\n### Heart Rate:\n';
       heartRateData.forEach((d: any) => {
         healthDataText += `- ${d.date}: Resting HR ${d.data.restingHeartRate} bpm\n`;
       });
     }
-    
+
     if (sleepData.length > 0) {
       healthDataText += '\n### Sleep Patterns:\n';
       sleepData.forEach((d: any) => {
@@ -119,7 +88,7 @@ export async function generateWithContext(
         healthDataText += `- ${d.date}: ${hours}h ${minutes}m sleep (${d.data.efficiency}% efficiency)\n`;
       });
     }
-    
+
     healthDataText += '\n**Analysis Instructions**: When relevant to the student\'s query, correlate their health metrics with their mental state. For example:\n';
     healthDataText += '- Low sleep + stress query = suggest sleep improvement strategies\n';
     healthDataText += '- Low activity + low mood = recommend gentle exercise\n';
@@ -133,15 +102,15 @@ export async function generateWithContext(
     healthDataText += `**Summary:** ${aiHealthInsights.summary}\n`;
     healthDataText += `**Mental Health Impact:** ${aiHealthInsights.mentalHealthCorrelation}\n`;
     healthDataText += `**Urgency Level:** ${aiHealthInsights.urgencyLevel.toUpperCase()}\n`;
-    
+
     if (aiHealthInsights.patterns && aiHealthInsights.patterns.length > 0) {
       healthDataText += `**Patterns Detected:** ${aiHealthInsights.patterns.join(', ')}\n`;
     }
-    
+
     if (aiHealthInsights.recommendations && aiHealthInsights.recommendations.length > 0) {
       healthDataText += `**AI Recommendations:** ${aiHealthInsights.recommendations.join(' | ')}\n`;
     }
-    
+
     healthDataText += '\n**Important**: This analysis was generated by a specialized AI model. Use these insights to provide personalized, evidence-based support.\n';
   }
 
@@ -152,116 +121,92 @@ export async function generateWithContext(
   const maxContextLength = 2000; // Increased from 500
   const maxHealthLength = 800;   // Increased from 300
   const maxHistoryLength = 600;  // Keep more history
-  
-  const truncatedContext = contextText.length > maxContextLength 
-    ? contextText.substring(0, maxContextLength) + '...[more available]' 
+
+  const truncatedContext = contextText.length > maxContextLength
+    ? contextText.substring(0, maxContextLength) + '...[more available]'
     : contextText;
-  
+
   const truncatedHealth = healthDataText.length > maxHealthLength
     ? healthDataText.substring(0, maxHealthLength) + '...[summary truncated]'
     : healthDataText;
-  
+
   const truncatedHistory = historyText.length > maxHistoryLength
     ? historyText.substring(historyText.length - maxHistoryLength)
     : historyText;
 
-  // Create the prompt - optimized for speed and concise responses
-  const prompt = `You are a supportive mental health companion for college students. Be warm, empathetic, and concise.
+  // Create the prompt - optimized for local model (med-assistant/deepseek-r1)
+  const prompt = `You are a supportive mental health companion for college students at RVCE. Be warm, empathetic, and concise.
+
+## Your Role:
+- Provide emotional support and evidence-based mental health guidance
+- Remember and reference past conversations to provide personalized support
+- Use health data insights when relevant to the conversation
+- Always prioritize the student's well-being
 ${crisisAddition}
-${memoryContext ? `\n**What I remember about you:**\n${memoryContext}\n` : ''}
-${truncatedContext ? `\n**Relevant guidance from mental health resources:**\n${truncatedContext}\n` : ''}
-${truncatedHealth ? `\n**Health context:**\n${truncatedHealth}\n` : ''}
-${truncatedHistory ? `\n**Recent chat:**\n${truncatedHistory}\n` : ''}
-**Student asks:** ${userMessage}
+${memoryContext ? `\n## What I Remember About This Student (Use these to personalize your response):\n${memoryContext}\n` : ''}
+${truncatedContext ? `\n## Relevant Mental Health Knowledge:\n${truncatedContext}\n` : ''}
+${truncatedHealth ? `\n## Student's Health Data:\n${truncatedHealth}\n` : ''}
+${truncatedHistory ? `\n## Recent Conversation:\n${truncatedHistory}\n` : ''}
+## Student's Current Message:
+${userMessage}
 
-**Instructions:**
-1. Keep response under 150 words
+## Response Guidelines:
+1. Keep response under 150 words, be concise
 2. Use short paragraphs (2-3 lines max)
-3. Use **bold** for key points only
-4. Use bullet lists (•) for tips
-5. Be conversational and warm
-6. Reference their name/past if relevant
-7. Only suggest professional help if truly needed
-8. **IMPORTANT**: If relevant guidance is provided above, use it to inform your response
+3. Use **bold** for key points sparingly
+4. Use bullet points (•) for actionable tips
+5. Be conversational, warm, and supportive
+6. **Reference their past conversations and preferences** if available in memories
+7. Correlate health data with their concern if relevant
+8. Only suggest professional help when truly necessary
+9. If RAG context is provided, incorporate that knowledge naturally
 
-Respond naturally and concisely:`;
+Your response:`;
 
   try {
-    console.log('🔵 GEMINI: Generating response...');
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    console.log('🟢 GEMINI: Response generated successfully');
-    
+    console.log('🔵 OLLAMA: Generating response with local model...');
+    const text = await ollamaGenerateText(prompt, {
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+    console.log('🟢 OLLAMA: Response generated successfully');
+
     return text;
   } catch (error: any) {
-    console.error('🔴 GEMINI: API error:', {
+    console.error('🔴 OLLAMA: API error:', {
       message: error.message,
-      status: error.status,
-      statusText: error.statusText,
-      details: error.details || error
+      details: error
     });
-    
-    // Provide more helpful error messages
-    if (error.message?.includes('API key')) {
-      throw new Error('Invalid or missing Gemini API key. Please check your .env.local file');
-    } else if (error.status === 429) {
-      throw new Error('Gemini API rate limit exceeded. Please try again in a moment');
-    } else if (error.message?.includes('model not found')) {
-      throw new Error('Gemini model not found. The model name may be incorrect');
+
+    // Provide helpful error messages
+    if (error.message?.includes('not running') || error.message?.includes('ECONNREFUSED')) {
+      throw new Error('Ollama service is not running. Please start Ollama with: ollama serve');
+    } else if (error.message?.includes('timeout')) {
+      throw new Error('Response generation timed out. The model may be loading or overloaded.');
+    } else if (error.message?.includes('not found')) {
+      throw new Error(`Model not found. Please pull it with: ollama pull ${ollamaConfig.chatModel}`);
     }
-    
+
     throw new Error(`Failed to generate response: ${error.message}`);
   }
 }
 
-// Generate embeddings using Gemini's embedding model with rate limiting
+// Generate embeddings using Ollama's embedding model
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // Throttle embedding requests (5 seconds = max 12 per minute, safe for free tier)
-  await throttle(lastEmbeddingRequest, EMBEDDING_DELAY_MS);
-  lastEmbeddingRequest = Date.now();
-
-  const genAI = getGeminiClient();
-  
-  // Use text-embedding-004 - MUST match the model used for storing documents
-  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-  
   try {
-    console.log('🔵 Generating embedding with text-embedding-004...');
-    const result = await model.embedContent(text);
-    const embedding = result.embedding;
-    
-    // text-embedding-004 produces 768 dimensions
-    const embeddingArray = Array.isArray(embedding.values) 
-      ? embedding.values 
-      : Array.from(embedding.values);
-    
-    console.log('✅ Embedding generated (768 dimensions)');
-    return embeddingArray;
+    console.log('🔵 OLLAMA: Generating embedding...');
+    const embedding = await ollamaGenerateEmbedding(text);
+    console.log(`✅ Embedding generated (${embedding.length} dimensions)`);
+    return embedding;
   } catch (error: any) {
-    console.error('Gemini embedding error:', error);
-    
-    // If rate limit error, wait longer and retry once
-    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('Too Many Requests')) {
-      console.log('⚠️ Rate limit hit, waiting 15 seconds before retry...');
-      await new Promise(resolve => setTimeout(resolve, 15000));
-      
-      try {
-        console.log('🔄 Retrying embedding generation...');
-        const result = await model.embedContent(text);
-        const embedding = result.embedding;
-        
-        const embeddingArray = Array.isArray(embedding.values) 
-          ? embedding.values 
-          : Array.from(embedding.values);
-        
-        console.log('✅ Embedding generated after retry (768 dimensions)');
-        return embeddingArray;
-      } catch (retryError: any) {
-        throw new Error(`Failed to generate embedding after retry: ${retryError.message}`);
-      }
+    console.error('🔴 OLLAMA: Embedding error:', error.message);
+
+    if (error.message?.includes('not running') || error.message?.includes('ECONNREFUSED')) {
+      throw new Error('Ollama service is not running. Please start Ollama with: ollama serve');
+    } else if (error.message?.includes('not found')) {
+      throw new Error(`Embedding model not found. Please pull it with: ollama pull ${ollamaConfig.embedModel}`);
     }
-    
+
     throw new Error(`Failed to generate embedding: ${error.message}`);
   }
 }

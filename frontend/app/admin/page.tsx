@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  LogOut, 
-  Upload, 
-  FileText, 
-  Trash2, 
+import {
+  Shield,
+  LogOut,
+  Upload,
+  FileText,
+  Trash2,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -64,19 +64,19 @@ export default function AdminPage() {
   const checkAdmin = async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (user) {
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('role, username')
         .eq('user_id', user.id)
         .single();
-      
+
       if (profile?.role !== 'admin') {
         router.push('/dashboard');
         return;
       }
-      
+
       setUser({ ...user, ...profile });
     } else {
       router.push('/login');
@@ -135,16 +135,16 @@ export default function AdminPage() {
         throw new Error(data.error || 'Upload failed');
       }
 
-      const statsMsg = data.document.stats 
+      const statsMsg = data.document.stats
         ? ` (${data.document.stats.text} text, ${data.document.stats.tables} tables, ${data.document.stats.images} images)`
         : '';
-      
+
       setUploadSuccess(`Successfully uploaded: ${file.name} - ${data.document.numChunks} chunks${statsMsg}`);
       fetchDocuments(); // Refresh list
-      
+
       // Clear file input
       e.target.value = '';
-      
+
       setTimeout(() => setUploadSuccess(''), 10000);
     } catch (error: any) {
       setUploadError(error.message || 'Failed to upload file');
@@ -226,7 +226,7 @@ export default function AdminPage() {
               <p className="text-sm text-muted-foreground">RAG Vector Database Management</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{user?.username || 'Admin'}</p>
@@ -254,7 +254,7 @@ export default function AdminPage() {
             </div>
             <p className="text-2xl font-bold text-foreground">{stats.totalDocs}</p>
           </div>
-          
+
           <div className="glass rounded-2xl p-4 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center gap-2 mb-2">
               <Database className="w-4 h-4 text-primary" />
@@ -365,7 +365,7 @@ export default function AdminPage() {
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
                 <li>Extract tables, images & text (Docling)</li>
                 <li>Smart chunking with context</li>
-                <li>Generate embeddings (Gemini)</li>
+                <li>Generate embeddings (Ollama)</li>
                 <li>Store in Pinecone vector DB</li>
                 <li>Save metadata to Supabase</li>
               </ol>
@@ -393,7 +393,7 @@ export default function AdminPage() {
                 documents.map((doc) => {
                   const isExpanded = expandedDocs.has(doc.id);
                   const meta = doc.metadata;
-                  
+
                   return (
                     <div
                       key={doc.id}

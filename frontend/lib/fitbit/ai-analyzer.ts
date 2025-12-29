@@ -1,12 +1,12 @@
 /**
  * AI-Powered Fitbit Health Analysis
  * 
- * Uses a fine-tuned model to analyze Fitbit health data and generate 
+ * Uses local Ollama model to analyze Fitbit health data and generate 
  * personalized mental health insights. This replaces rule-based analysis
  * with intelligent, context-aware recommendations.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText, checkOllamaHealth, ollamaConfig } from "@/lib/ollama/client";
 
 interface FitbitDataPoint {
   date: string;
@@ -23,7 +23,7 @@ interface AIHealthInsight {
 }
 
 /**
- * Analyze Fitbit data using AI model (Gemini fine-tuned or base)
+ * Analyze Fitbit data using local Ollama model
  * @param fitbitData - Recent Fitbit data (last 7 days)
  * @param userContext - Additional context (optional: past conversations, concerns)
  * @returns AI-generated health insights
@@ -37,28 +37,16 @@ export async function analyzeHealthDataWithAI(
   }
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('⚠️ FITBIT AI: Gemini API key not found, skipping AI analysis');
+    // Check if Ollama is running
+    const isHealthy = await checkOllamaHealth();
+    if (!isHealthy) {
+      console.warn('⚠️ FITBIT AI: Ollama service not available, skipping AI analysis');
       return null;
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // TODO: Replace with your fine-tuned model ID when ready
-    // const model = genAI.getGenerativeModel({ model: "tunedModels/fitbit-mental-health-v1" });
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
-      generationConfig: {
-        temperature: 0.5, // Lower for more consistent analysis
-        topP: 0.8,
-        maxOutputTokens: 1024,
-      },
-    });
-
     // Prepare structured data for analysis
     const dataByType = organizeDataByType(fitbitData);
-    
+
     const prompt = `You are a specialized AI trained to analyze health data and identify correlations with mental health for college students.
 
 ## Health Data (Last 7 Days):
@@ -88,10 +76,12 @@ Analyze this health data and provide insights in JSON format:
 
 IMPORTANT: Return ONLY valid JSON, no additional text.`;
 
-    console.log('🔵 FITBIT AI: Analyzing health data with AI model...');
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
-    
+    console.log('🔵 FITBIT AI: Analyzing health data with Ollama...');
+    const response = await generateText(prompt, {
+      temperature: 0.5, // Lower for more consistent analysis
+      maxTokens: 1024,
+    });
+
     // Parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -101,7 +91,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text.`;
 
     const insights: AIHealthInsight = JSON.parse(jsonMatch[0]);
     console.log('🟢 FITBIT AI: Analysis complete. Urgency:', insights.urgencyLevel);
-    
+
     return insights;
   } catch (error: any) {
     console.error('🔴 FITBIT AI: Error analyzing health data:', error.message);
@@ -190,11 +180,11 @@ export function formatAIInsightsForMemory(insights: AIHealthInsight, dateRange: 
 export function formatAIInsightsForChat(insights: AIHealthInsight): string {
   let formatted = '### 📊 Your Health Analysis\n\n';
   formatted += `${insights.summary}\n\n`;
-  
+
   if (insights.mentalHealthCorrelation) {
     formatted += `**Mental Health Connection:** ${insights.mentalHealthCorrelation}\n\n`;
   }
-  
+
   if (insights.recommendations.length > 0) {
     formatted += '**Recommendations:**\n';
     insights.recommendations.forEach((rec, idx) => {
@@ -202,13 +192,13 @@ export function formatAIInsightsForChat(insights: AIHealthInsight): string {
     });
     formatted += '\n';
   }
-  
+
   if (insights.patterns.length > 0) {
     formatted += '**Patterns Observed:**\n';
     insights.patterns.forEach(pattern => {
       formatted += `- ${pattern}\n`;
     });
   }
-  
+
   return formatted;
 }
