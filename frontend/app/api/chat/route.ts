@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { queryRAG } from '@/lib/rag/query';
-import { generateWithContext } from '@/lib/gemini/client';
 import { detectCrisis, detectSevereCrisis, getEmergencyResourcesText, getSevereEmergencyResourcesText } from '@/lib/safety/crisis-detection';
-import { searchMemories, addMemory, MEMORY_CATEGORIES } from '@/lib/mem0/client';
-import { analyzeHealthDataWithAI, formatAIInsightsForMemory } from '@/lib/fitbit/ai-analyzer';
+import { addMemory, MEMORY_CATEGORIES } from '@/lib/mem0/client';
+import { formatAIInsightsForMemory } from '@/lib/fitbit/ai-analyzer';
 import { sendEmergencyAlert } from '@/lib/email/crisis-alert';
+import { orchestrateWithTimeout } from '@/lib/gemini/flash-orchestrator';
+import { buildDeepSeekPrompt, getContextSummary } from '@/lib/ollama/context-builder';
+import { generateText as ollamaGenerateText } from '@/lib/ollama/client';
 
 export async function POST(request: NextRequest) {
   console.log('🔵 CHAT: Received chat request');
@@ -104,103 +105,37 @@ export async function POST(request: NextRequest) {
 
     // Check for regular crisis
     const isCrisis = detectCrisis(message);
-    if (isCrisis) {
-      console.log('🚨 CHAT: CRISIS DETECTED - Priority response mode');
-    }
 
-    // Retrieve memories
-    let userMemories: any[] = [];
-    try {
-      console.log('🔵 CHAT: Retrieving user memories from Mem0...');
-      const memoryResult = await searchMemories(user.id, message, { limit: 5, threshold: 0.3 });
-      if (memoryResult.success && memoryResult.memories) {
-        userMemories = memoryResult.memories;
-        console.log('🟢 CHAT: Retrieved', userMemories.length, 'relevant memories');
-      }
-    } catch (memoryError: any) {
-      console.warn('⚠️ CHAT: Memory retrieval failed:', memoryError.message);
-    }
+    // Get user profile for personalization
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('username, email')
+      .eq('user_id', user.id)
+      .single();
 
-    // Fetch Fitbit data
-    let fitbitData: any = null;
-    try {
-      console.log('🔵 CHAT: Fetching Fitbit health data...');
-      const { data: fitbitTokens } = await supabase
-        .from('fitbit_tokens')
-        .select('fitbit_user_id')
-        .eq('user_id', user.id)
-        .single();
+    const userName = profile?.username || profile?.email?.split('@')[0] || 'Student';
 
-      if (fitbitTokens) {
-        const { data: recentData } = await supabase
-          .from('fitbit_data')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('date', { ascending: false })
-          .limit(7);
-
-        if (recentData && recentData.length > 0) {
-          fitbitData = {
-            connected: true,
-            recentData: recentData.map(d => ({
-              date: d.date,
-              type: d.data_type,
-              data: d.data
-            }))
-          };
-          console.log('🟢 CHAT: Retrieved', recentData.length, 'days of Fitbit data');
-        }
-      }
-    } catch (fitbitError: any) {
-      console.warn('⚠️ CHAT: Failed to fetch Fitbit data:', fitbitError.message);
-    }
-
-    // AI health insights
-    let healthInsightsText: string = '';
-    let aiHealthInsights: any = null;
-    if (fitbitData?.recentData && fitbitData.recentData.length > 0) {
-      try {
-        const memoryContext = userMemories.length > 0
-          ? userMemories.map(m => m.memory).join('. ')
-          : undefined;
-
-        aiHealthInsights = await analyzeHealthDataWithAI(fitbitData.recentData, memoryContext);
-
-        if (aiHealthInsights) {
-          const dateRange = `${fitbitData.recentData[fitbitData.recentData.length - 1]?.date} to ${fitbitData.recentData[0]?.date}`;
-          healthInsightsText = formatAIInsightsForMemory(aiHealthInsights, dateRange);
-          console.log('🟢 CHAT: AI health analysis complete. Urgency:', aiHealthInsights.urgencyLevel);
-        }
-      } catch (insightError: any) {
-        console.warn('⚠️ CHAT: Failed to generate AI health insights:', insightError.message);
-      }
-    }
-
-    // Query RAG
-    let relevantChunks: any[] = [];
-    const ragEnabled = process.env.ENABLE_RAG !== 'false';
-
-    if (ragEnabled) {
-      try {
-        console.log('🔵 CHAT: Querying RAG system...');
-        relevantChunks = await queryRAG(message, 5);
-        console.log('🟢 CHAT: Retrieved', relevantChunks.length, 'context chunks');
-      } catch (ragError: any) {
-        console.warn('⚠️ CHAT: RAG query failed:', ragError.message);
-      }
-    }
-
-    // Generate response
-    console.log('🔵 CHAT: Generating response with Ollama...');
-    const response = await generateWithContext(
+    // Two-stage architecture: Flash orchestrates tools, DeepSeek generates response
+    const context = await orchestrateWithTimeout(
+      user.id,
       message,
-      relevantChunks,
       conversationHistory || [],
-      fitbitData,
-      isCrisis,
-      userMemories,
-      aiHealthInsights
+      userName,
+      5000,
+      profile
     );
+
+    const prompt = buildDeepSeekPrompt(
+      message,
+      context,
+      conversationHistory || [],
+      { isCrisis, userName }
+    );
+
+    const response = await ollamaGenerateText(prompt, {
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
 
     // Add emergency resources if crisis
     let finalResponse = response;
@@ -211,15 +146,20 @@ export async function POST(request: NextRequest) {
 
     console.log('🟢 CHAT: Response generated successfully');
 
-    // Store health insights in memory
-    if (healthInsightsText && aiHealthInsights) {
+    // Store health insights in memory (background, non-blocking)
+    if (context.healthAnalysis) {
+      const dateRange = context.fitbitData?.recentData
+        ? `${context.fitbitData.recentData[context.fitbitData.recentData.length - 1]?.date} to ${context.fitbitData.recentData[0]?.date}`
+        : 'recent';
+      const healthInsightsText = formatAIInsightsForMemory(context.healthAnalysis, dateRange);
+
       addMemory(user.id, [
         { role: 'user', content: 'Health data analysis requested' },
         { role: 'assistant', content: healthInsightsText }
       ], {
         category: MEMORY_CATEGORIES.HEALTH_INSIGHTS,
-        urgency: aiHealthInsights.urgencyLevel,
-        patterns: aiHealthInsights.patterns,
+        urgency: context.healthAnalysis.urgencyLevel,
+        patterns: context.healthAnalysis.patterns,
       }).catch(error => {
         console.warn('⚠️ CHAT: Failed to store health insights in memory:', error);
       });
@@ -261,13 +201,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       response: finalResponse,
-      sources: relevantChunks.map(chunk => ({
+      sources: context.ragChunks.map(chunk => ({
         filename: chunk.metadata.filename,
         score: chunk.score,
         pageNumber: chunk.metadata.pageNumber,
       })),
-      contextUsed: relevantChunks.length > 0,
-      fitbitDataUsed: !!fitbitData,
+      contextUsed: context.ragChunks.length > 0,
+      fitbitDataUsed: !!context.fitbitData,
+      memoriesUsed: context.memories.length,
+      toolsUsed: context.toolsUsed,
+      orchestrationTimeMs: context.executionTimeMs,
       crisisDetected: isCrisis,
     });
 

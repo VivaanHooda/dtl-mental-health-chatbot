@@ -62,7 +62,7 @@ export default function FitbitWidget() {
       setLoading(true);
       const response = await fetch('/api/fitbit/status');
       const data = await response.json();
-      
+
       if (response.ok) {
         setStatus(data);
         if (data.connected) {
@@ -78,12 +78,12 @@ export default function FitbitWidget() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (date: string = 'today') => {
     try {
       setSyncing(true);
-      const response = await fetch('/api/fitbit/data');
+      const response = await fetch(`/api/fitbit/data?date=${date}`);
       const result = await response.json();
-      
+
       if (response.ok) {
         setData(result.data);
         setError('');
@@ -92,6 +92,37 @@ export default function FitbitWidget() {
       }
     } catch (err: any) {
       setError('Failed to fetch Fitbit data');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const syncLast7Days = async () => {
+    if (!confirm('This will fetch the last 7 days of data from Fitbit. Continue?')) {
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      const today = new Date();
+      const promises = [];
+
+      // Fetch last 7 days
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        promises.push(fetch(`/api/fitbit/data?date=${dateStr}`));
+      }
+
+      await Promise.all(promises);
+
+      // Refresh today's data to display
+      await fetchData('today');
+
+      alert('Successfully synced last 7 days of Fitbit data!');
+    } catch (err: any) {
+      setError('Failed to sync data');
     } finally {
       setSyncing(false);
     }
@@ -111,7 +142,7 @@ export default function FitbitWidget() {
       const response = await fetch('/api/fitbit/disconnect', {
         method: 'POST',
       });
-      
+
       if (response.ok) {
         setStatus({ connected: false });
         setData(null);
@@ -208,12 +239,12 @@ export default function FitbitWidget() {
 
         <div className="flex gap-2">
           <button
-            onClick={fetchData}
+            onClick={() => fetchData('today')}
             disabled={syncing}
-            className="p-2 hover:bg-muted rounded-2xl transition-all duration-200"
-            title="Refresh data"
+            className="p-2 hover:bg-primary/10 rounded-2xl transition-all duration-200 group"
+            title="Refresh today's data"
           >
-            <RefreshCw className={`w-4 h-4 text-muted-foreground ${syncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-primary' : 'text-muted-foreground group-hover:text-primary'}`} />
           </button>
           <button
             onClick={handleDisconnect}
@@ -223,6 +254,20 @@ export default function FitbitWidget() {
             <X className="w-4 h-4 text-error" />
           </button>
         </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-4">
+        <button
+          onClick={syncLast7Days}
+          disabled={syncing}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-2xl transition-all duration-200 disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          <span className="text-sm font-medium">
+            {syncing ? 'Syncing...' : 'Sync Last 7 Days'}
+          </span>
+        </button>
       </div>
 
       {/* Data Display */}
@@ -271,12 +316,24 @@ export default function FitbitWidget() {
                 <Heart className="w-4 h-4 text-error" />
                 <h4 className="font-medium text-foreground">Heart Rate</h4>
               </div>
-              <div className="text-sm">
-                <p className="text-muted-foreground">Resting Heart Rate</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {data.heartRate.restingHeartRate} <span className="text-sm font-normal">bpm</span>
-                </p>
-              </div>
+              {data.heartRate.restingHeartRate ? (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Resting Heart Rate</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {data.heartRate.restingHeartRate} <span className="text-sm font-normal">bpm</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Heart Rate Zones Today</p>
+                  {data.heartRate.zones?.map((zone: any) => (
+                    <div key={zone.name} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{zone.name}</span>
+                      <span className="font-medium text-foreground">{zone.minutes} min</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

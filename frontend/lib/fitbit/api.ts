@@ -19,19 +19,13 @@ async function fitbitRequest<T>(
   userId: string,
   endpoint: string
 ): Promise<T> {
-  console.log('🔵 API: Making request to:', endpoint);
-  
   const accessToken = await getValidAccessToken(userId);
-  
+
   if (!accessToken) {
-    console.error('🔴 API: No valid access token');
     throw new Error('No valid Fitbit access token available');
   }
 
-  console.log('🟢 API: Got access token:', accessToken.substring(0, 20) + '...');
-
   const url = `${FITBIT_API_BASE}${endpoint}`;
-  console.log('🔵 API: Full URL:', url);
 
   const response = await fetch(url, {
     headers: {
@@ -39,21 +33,12 @@ async function fitbitRequest<T>(
     },
   });
 
-  console.log('🔵 API: Response status:', response.status);
-
   if (!response.ok) {
     const error = await response.text();
-    console.error('🔴 API: Request failed:', {
-      status: response.status,
-      endpoint: endpoint,
-      error: error,
-    });
     throw new Error(`Fitbit API error: ${response.status} - ${error}`);
   }
 
   const data = await response.json();
-  console.log('🟢 API: Response data for', endpoint, ':', JSON.stringify(data, null, 2));
-
   return data;
 }
 
@@ -113,9 +98,11 @@ export async function fetchActivitySummary(
   userId: string,
   date: string = 'today'
 ): Promise<FitbitActivitySummaryResponse> {
+  // Convert 'today' to actual YYYY-MM-DD format - activity endpoint doesn't accept 'today'
+  const actualDate = date === 'today' ? new Date().toISOString().split('T')[0] : date;
   return await fitbitRequest<FitbitActivitySummaryResponse>(
     userId,
-    `/activities/date/${date}.json`
+    `/activities/date/${actualDate}.json`
   );
 }
 
@@ -148,13 +135,13 @@ export async function getSimplifiedActivityData(
   date: string = 'today'
 ): Promise<SimplifiedActivityData> {
   const data = await fetchActivitySummary(userId, date);
-  
+
   // Only return data if user actually had activity
-  const hasActivity = data.summary.steps > 0 || 
-                      data.summary.caloriesOut > 0 || 
-                      data.summary.fairlyActiveMinutes > 0 ||
-                      data.summary.veryActiveMinutes > 0;
-  
+  const hasActivity = data.summary.steps > 0 ||
+    data.summary.caloriesOut > 0 ||
+    data.summary.fairlyActiveMinutes > 0 ||
+    data.summary.veryActiveMinutes > 0;
+
   if (!hasActivity) {
     return {
       steps: 0,
@@ -181,7 +168,7 @@ export async function getSimplifiedHeartRateData(
   try {
     const data = await fetchHeartRate(userId, date);
     const heartData = data['activities-heart'][0];
-    
+
     if (!heartData || !heartData.value) {
       return null;
     }
@@ -214,7 +201,7 @@ export async function getSimplifiedSleepData(
   try {
     const data = await fetchSleep(userId, date);
     const sleep = data.sleep[0];
-    
+
     if (!sleep) {
       return null;
     }
@@ -232,10 +219,10 @@ export async function getSimplifiedSleepData(
     // Only include stages if they exist and have data
     if (sleep.levels?.summary) {
       const stages = sleep.levels.summary;
-      const hasStages = (stages.deep?.minutes || 0) > 0 || 
-                       (stages.light?.minutes || 0) > 0 || 
-                       (stages.rem?.minutes || 0) > 0;
-      
+      const hasStages = (stages.deep?.minutes || 0) > 0 ||
+        (stages.light?.minutes || 0) > 0 ||
+        (stages.rem?.minutes || 0) > 0;
+
       if (hasStages) {
         sleepData.stages = {
           deep: stages.deep?.minutes || 0,
@@ -256,7 +243,7 @@ export async function getSimplifiedSleepData(
 // Fetch all daily data at once
 export async function fetchAllDailyData(userId: string, date: string = 'today') {
   console.log('🔵 API: Fetching all daily data for date:', date);
-  
+
   const [activity, heartRate, sleep, profile] = await Promise.allSettled([
     getSimplifiedActivityData(userId, date),
     getSimplifiedHeartRateData(userId, date),

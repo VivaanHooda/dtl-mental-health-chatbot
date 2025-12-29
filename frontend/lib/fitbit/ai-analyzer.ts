@@ -76,25 +76,70 @@ Analyze this health data and provide insights in JSON format:
 
 IMPORTANT: Return ONLY valid JSON, no additional text.`;
 
-    console.log('🔵 FITBIT AI: Analyzing health data with Ollama...');
     const response = await generateText(prompt, {
-      temperature: 0.5, // Lower for more consistent analysis
+      temperature: 0.5,
       maxTokens: 1024,
     });
 
-    // Parse JSON response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('🔴 FITBIT AI: Failed to parse JSON response');
+    // Parse JSON response - find the outermost JSON object
+    const insights = parseJSONFromResponse(response);
+    if (!insights) {
+      console.error('FITBIT AI: Failed to parse JSON response');
       return null;
     }
 
-    const insights: AIHealthInsight = JSON.parse(jsonMatch[0]);
-    console.log('🟢 FITBIT AI: Analysis complete. Urgency:', insights.urgencyLevel);
-
     return insights;
   } catch (error: any) {
-    console.error('🔴 FITBIT AI: Error analyzing health data:', error.message);
+    console.error('FITBIT AI: Error analyzing health data:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Safely parse JSON from LLM response
+ * Handles cases where model outputs extra text before/after JSON
+ */
+function parseJSONFromResponse(response: string): AIHealthInsight | null {
+  try {
+    // First try direct parse
+    return JSON.parse(response.trim());
+  } catch {
+    // Find JSON by matching balanced braces
+    let braceCount = 0;
+    let startIndex = -1;
+    let endIndex = -1;
+
+    for (let i = 0; i < response.length; i++) {
+      if (response[i] === '{') {
+        if (braceCount === 0) startIndex = i;
+        braceCount++;
+      } else if (response[i] === '}') {
+        braceCount--;
+        if (braceCount === 0 && startIndex !== -1) {
+          endIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (startIndex !== -1 && endIndex !== -1) {
+      const jsonStr = response.substring(startIndex, endIndex + 1);
+      try {
+        return JSON.parse(jsonStr);
+      } catch {
+        // Try to clean up common issues
+        const cleaned = jsonStr
+          .replace(/,\s*}/g, '}')  // Remove trailing commas
+          .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+          .replace(/[\x00-\x1F\x7F]/g, ' '); // Remove control characters
+
+        try {
+          return JSON.parse(cleaned);
+        } catch {
+          return null;
+        }
+      }
+    }
     return null;
   }
 }
