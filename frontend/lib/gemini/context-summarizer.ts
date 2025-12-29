@@ -21,18 +21,24 @@ export interface ContextSummary {
 /**
  * System prompt for the summarizer
  */
-const SUMMARIZER_SYSTEM_PROMPT = `You are a context summarizer for a mental health chatbot. Create CONCISE, NATURAL paragraph summaries.
+const SUMMARIZER_SYSTEM_PROMPT = `You are a context summarizer for a mental health chatbot. Your job is to convert structured context data into a NATURAL CONVERSATIONAL PARAGRAPH.
 
-RULES:
-1. Format as 1-2 flowing sentences (NOT bullet points or structured data)
-2. ALWAYS start with: "[userName] has..."
-3. Include SPECIFIC health numbers only if relevant to the message
-4. Sound natural and conversational
-5. Focus ONLY on what's relevant to their current message
-6. Never use labels like "CURRENT VITALS" or structured formats
+CRITICAL RULES:
+1. OUTPUT ONLY 1-2 SENTENCES IN PARAGRAPH FORM
+2. NO structural labels, headers, bullet points, or sections
+3. ALWAYS lead with the user's name: "[Name] has..."
+4. Include SPECIFIC health metrics ONLY if highly relevant
+5. Reference key memories only when relevant to the message
+6. Sound warm, personal, and natural - like a real therapist
+7. NEVER output any structured data, lists, or formatting markers
 
-Example output:
-"Sarah has been taking around 3,500 steps daily with a resting heart rate of 72 bpm. She mentioned feeling stressed about exams last week."`;
+GOOD EXAMPLE:
+"Sarah has been managing stress around upcoming exams and has been averaging 3,500 steps daily with a resting heart rate of 72 bpm. She mentioned feeling disconnected recently but is focused on scheduling activities that bring her joy."
+
+BAD EXAMPLES:
+❌ "## USER DATA: Sarah has..."
+❌ "- Name: Sarah\n- Steps: 3500"
+❌ "[VITAL SIGNS] Heart Rate: 72bpm"`;
 
 /**
  * Summarize all tool outputs using Gemini Flash
@@ -109,11 +115,11 @@ Create a 1-2 sentence summary. Start with "${userName} has..." and keep it conve
 function buildRawContext(context: OrchestratedContext, recentWellness: any | null, userProfile?: any, userName: string = 'you'): string {
     const sections: string[] = [];
 
-    // User profile section
-    if (userProfile) {
-        let profileText = `User Profile: ${userProfile.username || 'User'}`;
-        if (userProfile.email) profileText += ` (${userProfile.email})`;
-        sections.push(profileText);
+    // User profile section - only include username, not email
+    if (userProfile?.username) {
+        sections.push(`User: ${userProfile.username}`);
+    } else if (userName && userName !== 'you') {
+        sections.push(`User: ${userName}`);
     }
 
     // Memories section
@@ -209,11 +215,12 @@ function summarizeFitbitData(data: Array<{ date: string; type: string; data: any
 }
 
 /**
- * Format recent wellness data with ALL specific values
+ * Format recent wellness data as natural language (not for raw context)
+ * Returns empty string if no data - Flash will create the summary
  */
 function formatRecentWellness(wellness: any, userName: string = 'you'): string {
     if (!wellness) {
-        return `${userName} has no recent wellness data available.`;
+        return '';
     }
 
     const details: string[] = [];
@@ -221,24 +228,24 @@ function formatRecentWellness(wellness: any, userName: string = 'you'): string {
     // Collect all details in natural language
     if (wellness.heartRate) {
         const hr = wellness.heartRate;
-        details.push(`a heart rate of ${hr.average} bpm`);
+        details.push(`heart rate averaging ${hr.average} bpm`);
     }
 
     if (wellness.recentSteps !== null && wellness.recentSteps !== undefined) {
-        details.push(`${wellness.recentSteps} steps`);
+        details.push(`${wellness.recentSteps} steps in the last 30 minutes`);
     }
 
     if (wellness.hrv) {
-        const status = wellness.hrv.rmssd < 30 ? 'stressed' : wellness.hrv.rmssd > 50 ? 'relaxed' : 'neutral';
-        details.push(`HRV ${wellness.hrv.rmssd}ms (${status})`);
+        const status = wellness.hrv.rmssd < 30 ? 'elevated stress' : wellness.hrv.rmssd > 50 ? 'relaxed state' : 'moderate state';
+        details.push(`HRV indicating ${status}`);
     }
 
-    // Build the sentence with userName
+    // Don't format with userName here - let Flash handle it in the summary
     if (details.length === 0) {
-        return `${userName} has no recent vital data available.`;
+        return '';
     }
 
-    return `${userName} has ${details.join(', ')}.`;
+    return details.join(', ') + '.';
 }
 
 /**
