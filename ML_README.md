@@ -513,14 +513,251 @@ Tone: Warm friend who genuinely cares, not a therapist.`;
 | Model | Training Status | Notes |
 |-------|----------------|-------|
 | Gemini 2.5 Flash | Pre-trained (Google) | No custom fine-tuning |
-| DeepSeek (llama3.2) | Pre-trained + distilled | No custom fine-tuning |
+| **DeepSeek R1 Distill Llama 8B** | **Fine-tuned on MentalChat16K** | **Active training (see below)** |
 | Nomic Embed Text | Pre-trained (Nomic AI) | No custom fine-tuning |
 
-### Fine-Tuning Roadmap
+### Active Fine-Tuning: DeepSeek R1 Mental Health Model
 
-We are **NOT currently fine-tuning** any models, but here's the plan for future iterations:
+We are **currently fine-tuning** DeepSeek R1 Distill Llama 8B on mental health conversations using the MentalChat16K dataset.
 
-#### Phase 1: Data Collection (Q1 2026)
+#### Training Dataset: MentalChat16K
+
+**Dataset**: [`ShenLab/MentalChat16K`](https://huggingface.co/datasets/ShenLab/MentalChat16K)
+
+**Description**: A curated collection of 16,000+ mental health support conversations covering various topics including anxiety, depression, stress, relationship issues, and general wellness.
+
+**Key Statistics**:
+- **Total Conversations**: 16,000+
+- **Split**: 95% training (15,200 samples), 5% validation (800 samples)
+- **Average Length**: ~200-500 tokens per conversation
+- **Topics Covered**:
+  - Anxiety and panic disorders
+  - Depression and mood disorders
+  - Stress management
+  - Relationship and family issues
+  - Self-esteem and confidence
+  - Sleep disorders
+  - Grief and loss
+  - Work-life balance
+  - General wellness and mental health education
+
+**Dataset Format**:
+```json
+{
+  "instruction": "I'm feeling anxious about my upcoming presentation",
+  "input": "",
+  "output": "It's completely normal to feel anxious about presentations. Let's work through this together. First, take a deep breath..."
+}
+```
+
+**Why MentalChat16K?**
+1. **Domain-Specific**: Focused exclusively on mental health conversations
+2. **High Quality**: Professionally curated with therapeutic best practices
+3. **Diverse Topics**: Covers wide range of mental health concerns
+4. **Empathetic Tone**: Responses demonstrate warmth and validation
+5. **Size**: Large enough for effective fine-tuning (16K samples)
+
+#### Fine-Tuning Implementation
+
+**Base Model**: `unsloth/DeepSeek-R1-Distill-Llama-8B-bnb-4bit`
+
+**Training Infrastructure**:
+- Platform: Google Colab (free tier with checkpointing strategy)
+- Quantization: 4-bit using bitsandbytes
+- Framework: Unsloth (optimized for efficient training)
+- Checkpoint Storage: Hugging Face Hub ([A5CENSION-SRT/mental-health-deepseek-v1](https://huggingface.co/A5CENSION-SRT/mental-health-deepseek-v1))
+
+**Prompt Template** (DeepSeek Reasoning Format):
+```xml
+<｜User｜>{instruction} {input}<｜Assistant｜><think>
+The user is seeking mental health support. I should respond with empathy and therapeutic validation.
+</think>{output}<｜end of sentence｜>
+```
+
+**LoRA Configuration**:
+```python
+from unsloth import FastLanguageModel
+
+model = FastLanguageModel.get_peft_model(
+    model,
+    r=16,                    # LoRA rank
+    lora_alpha=32,          # Scaling factor (2x rank)
+    lora_dropout=0,         # No dropout for stability
+    bias="none",            # Don't adapt biases
+    use_gradient_checkpointing="unsloth",  # Memory optimization
+    target_modules=[
+        "q_proj", "k_proj", "v_proj", "o_proj",  # Attention layers
+        "gate_proj", "up_proj", "down_proj",      # FFN layers
+    ],
+)
+```
+
+**Training Hyperparameters**:
+
+| Parameter | Value | Reasoning |
+|-----------|-------|-----------|
+| **max_seq_length** | 1024 | Covers most conversations without truncation |
+| **batch_size** | 2 (per device) | Maximum for Colab free tier GPU memory |
+| **gradient_accumulation_steps** | 4 | Effective batch size = 8 |
+| **learning_rate** | 2e-4 | Standard for LoRA fine-tuning |
+| **warmup_steps** | 5 | Quick warmup for small dataset |
+| **max_steps** | 1800 | ~1.5 epochs over 15,200 training samples |
+| **save_steps** | 100 | Checkpoint every 100 steps for Colab resilience |
+| **save_total_limit** | 2 | Keep only 2 latest checkpoints locally |
+| **fp16** | True (if GPU) | Mixed precision for speed |
+| **bf16** | True (if supported) | Better numerical stability |
+| **packing** | True | Efficient sequence packing for variable lengths |
+
+**Training Configuration**:
+```python
+from trl import SFTTrainer, SFTConfig
+
+sft_config = SFTConfig(
+    output_dir="./outputs",
+    dataset_text_field="text",
+    max_seq_length=1024,
+    packing=True,
+    
+    # Checkpointing strategy (Colab-resilient)
+    save_strategy="steps",
+    save_steps=100,
+    save_total_limit=2,
+    max_steps=1800,
+    
+    # Training hyperparameters
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,
+    learning_rate=2e-4,
+    warmup_steps=5,
+    
+    # Mixed precision
+    fp16=not is_bfloat16_supported(),
+    bf16=is_bfloat16_supported(),
+    
+    # Hub integration
+    push_to_hub=True,
+    hub_model_id="A5CENSION-SRT/mental-health-deepseek-v1",
+    hub_strategy="all_checkpoints",  # Push full checkpoints
+)
+```
+
+**Data Preprocessing Pipeline**:
+
+```python
+from datasets import load_dataset
+
+# 1. Load dataset
+dataset = load_dataset("ShenLab/MentalChat16K", split="train")
+
+# 2. Format with DeepSeek reasoning template
+prompt_style = """<｜User｜>{input}<｜Assistant｜><think>
+{reasoning}
+</think>{output}<｜end of sentence｜>"""
+
+def formatting_prompts_func(examples):
+    instructions = examples.get("instruction", [""] * len(examples["output"]))
+    user_inputs = examples.get("input", [""] * len(examples["output"]))
+    outputs = examples.get("output", [""] * len(examples["output"]))
+    
+    texts = []
+    for inst, user_in, output in zip(instructions, user_inputs, outputs):
+        # Combine instruction and input
+        full_input = f"{inst} {user_in}".strip()
+        
+        # Add reasoning step for mental health context
+        text = prompt_style.format(
+            input=full_input,
+            reasoning="The user is seeking mental health support. I should respond with empathy and therapeutic validation.",
+            output=output
+        )
+        texts.append(text)
+    return {"text": texts}
+
+# 3. Map and split (95% train, 5% validation)
+dataset = dataset.map(formatting_prompts_func, batched=True)
+dataset = dataset.train_test_split(test_size=0.05, seed=3407)
+
+# Training samples: 15,200 | Eval samples: 800
+```
+
+**Checkpointing Strategy for Colab Free Tier**:
+
+Since Colab sessions can disconnect, we use an incremental training strategy:
+
+1. **Save Frequently**: Checkpoint every 100 steps
+2. **Hub Sync**: Auto-push to Hugging Face Hub with `hub_strategy="all_checkpoints"`
+3. **Resume Automatically**: Use `resume_from_checkpoint` to continue from latest
+4. **State Preservation**: Checkpoints include:
+   - `adapter_model.safetensors` - Learned LoRA weights
+   - `optimizer.pt` - Optimizer state (momentum, learning rate)
+   - `scheduler.pt` - Learning rate schedule
+   - `trainer_state.json` - Current step counter
+
+**Resume Training Example**:
+```python
+from huggingface_hub import snapshot_download
+
+# Download latest checkpoint from Hub
+checkpoint_to_resume = "checkpoint-500"
+snapshot_download(
+    repo_id="A5CENSION-SRT/mental-health-deepseek-v1",
+    allow_patterns=f"{checkpoint_to_resume}/*",
+    local_dir="./hf_checkpoint_cache",
+)
+
+# Resume training from Step 501
+trainer.train(resume_from_checkpoint=f"./hf_checkpoint_cache/{checkpoint_to_resume}")
+```
+
+**Training Progress**:
+- ✅ Checkpoint 100 (Steps 0-100)
+- ✅ Checkpoint 200 (Steps 101-200)
+- ✅ Checkpoint 300 (Steps 201-300)
+- ✅ Checkpoint 400 (Steps 301-400)
+- ✅ Checkpoint 500 (Steps 401-500)
+- 🔄 In Progress: Steps 501-1800
+
+**Anti-Disconnect Script** (Colab):
+```javascript
+// Run in browser console to prevent disconnections
+function ClickConnect(){
+    console.log("Keeping session alive...");
+    document.querySelector("colab-connect-button").click();
+}
+setInterval(ClickConnect, 60000);  // Every 60 seconds
+```
+
+**Training Notebook**: See `python/training_deepseek.ipynb` for complete implementation.
+
+---
+
+### Future Fine-Tuning Roadmap
+
+#### Phase 1: Evaluate MentalChat16K Fine-Tuned Model (Q1 2026)
+
+**Goal**: Assess improvements from MentalChat16K fine-tuning
+
+1. **Compare Models**:
+   - Base model: `unsloth/DeepSeek-R1-Distill-Llama-8B-bnb-4bit`
+   - Fine-tuned: `A5CENSION-SRT/mental-health-deepseek-v1`
+   
+2. **Evaluation Metrics**:
+   - **Empathy Score**: Human evaluation on warmth and validation
+   - **Response Quality**: Relevance and helpfulness ratings
+   - **Safety**: No medical diagnoses, proper crisis handling
+   - **Perplexity**: Lower = better language modeling
+
+3. **A/B Testing**:
+   - Deploy both models to production
+   - 50/50 split of user traffic
+   - Collect user feedback (thumbs up/down)
+   - Measure engagement metrics (conversation length, return rate)
+
+4. **Decision Criteria**:
+   - If fine-tuned model shows **>10% improvement** in empathy/quality → Deploy as default
+   - If marginal improvement (<10%) → Continue with additional data collection
+
+#### Phase 2: Additional Data Collection & Domain Expansion (Q2 2026)
 
 **Goal**: Gather high-quality conversation data for fine-tuning
 
